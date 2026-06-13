@@ -83,3 +83,77 @@ SMTP_FROM=wallchart@example.com
 systemctl daemon-reload
 systemctl enable --now wallchart26
 ```
+
+## Production deploy (wallchart26.com)
+
+Live setup on the shared droplet (`46.101.126.4`). The app listens on
+`127.0.0.1:8090` (port `8080` is taken by headscale); nginx terminates TLS and
+proxies to it. Config templates live in `deploy/`. The systemd unit uses
+`DynamicUser` + `StateDirectory`, so the SQLite DB lives at
+`/var/lib/wallchart26/`.
+
+### First-time setup
+
+1. **DNS:** point `wallchart26.com` and `www` (A records) at the server. If the
+   domain is on Cloudflare, set them to **DNS only** (grey cloud) so certbot's
+   HTTP-01 challenge reaches the origin. Verify with
+   `dig +short wallchart26.com @1.1.1.1`.
+2. **Copy artifacts** (from the repo root):
+
+   ```sh
+   scp wallchart26 deploy/wallchart26.service deploy/wallchart26.nginx.conf root@46.101.126.4:/root/
+   ```
+
+3. **Install the app** (on the server):
+
+   ```sh
+   install -d /opt/wallchart26
+   install -m 0755 /root/wallchart26 /opt/wallchart26/wallchart26
+   # secrets only (SMTP_*, ADMIN_EMAILS); other config is in the unit
+   vim /opt/wallchart26/wallchart26.env        # see deploy/wallchart26.env.example
+   chmod 600 /opt/wallchart26/wallchart26.env
+   install -m 0644 /root/wallchart26.service /etc/systemd/system/wallchart26.service
+   systemctl daemon-reload
+   systemctl enable --now wallchart26
+   curl -sI http://127.0.0.1:8090/ | head -3   # expect HTTP/1.1 200 OK
+   ```
+
+4. **nginx + Let's Encrypt** (on the server):
+
+   ```sh
+   # temporary HTTP block for the ACME challenge
+   cat > /etc/nginx/sites-available/wallchart26.com <<'EOF'
+   server {
+       listen 80;
+       listen [::]:80;
+       server_name wallchart26.com www.wallchart26.com;
+       location /.well-known/acme-challenge/ { allow all; root /var/www/html; }
+       location / { return 301 https://wallchart26.com$request_uri; }
+   }
+   EOF
+   ln -sf /etc/nginx/sites-available/wallchart26.com /etc/nginx/sites-enabled/
+   nginx -t && systemctl reload nginx
+
+   certbot certonly --webroot -w /var/www/html -d wallchart26.com -d www.wallchart26.com
+
+   # full HTTPS config proxying to :8090
+   cp /root/wallchart26.nginx.conf /etc/nginx/sites-available/wallchart26.com
+   nginx -t && systemctl reload nginx
+   ```
+
+Certbot installs a renewal timer, so the certificate renews automatically.
+
+### Redeploy a new version
+
+```sh
+make build                                   # local
+scp wallchart26 root@46.101.126.4:/root/     # local
+```
+
+```sh
+install -m 0755 /root/wallchart26 /opt/wallchart26/wallchart26   # server
+systemctl restart wallchart26
+```
+
+The database (`/var/lib/wallchart26/`), nginx config, and certificate are left
+untouched. Check logs with `journalctl -u wallchart26 -n 50 --no-pager`.

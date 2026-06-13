@@ -62,7 +62,7 @@ templ Header(data pageData) {
 				<select id="tzSelect">
 					<option value="auto" selected?={ data.Timezone == "auto" }>{ t(data.Lang, "tz.auto") }</option>
 					for _, option := range timezoneOptions() {
-						<option value={ option.Value } selected?={ data.Timezone == option.Value }>{ option.Label }</option>
+						<option value={ option.Value } selected?={ data.Timezone == option.Value }>{ t(data.Lang, option.LabelKey) }</option>
 					}
 				</select>
 			</label>

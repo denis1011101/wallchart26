@@ -64,6 +64,13 @@ var messages = map[string]map[string]string{
 		"intro.start":             "Start guessing",
 		"tz.label":                "Time zone",
 		"tz.auto":                 "Auto",
+		"tz.moscow":               "Moscow",
+		"tz.kaliningrad":          "Kaliningrad",
+		"tz.samara":               "Samara",
+		"tz.yekaterinburg":        "Yekaterinburg",
+		"tz.novosibirsk":          "Novosibirsk",
+		"tz.vladivostok":          "Vladivostok",
+		"tz.utc":                  "UTC",
 		"team.tbd":                "TBD",
 		"email.subject":           "Wallchart '26 login code",
 		"email.body":              "Your Wallchart '26 code is %s. It expires in 10 minutes.",
@@ -116,6 +123,13 @@ var messages = map[string]map[string]string{
 		"intro.start":             "Начать угадывать",
 		"tz.label":                "Часовой пояс",
 		"tz.auto":                 "Авто",
+		"tz.moscow":               "МСК",
+		"tz.kaliningrad":          "Калининград",
+		"tz.samara":               "Самара",
+		"tz.yekaterinburg":        "Екатеринбург",
+		"tz.novosibirsk":          "Новосибирск",
+		"tz.vladivostok":          "Владивосток",
+		"tz.utc":                  "UTC",
 		"team.tbd":                "не определено",
 		"email.subject":           "Код входа Wallchart '26",
 		"email.body":              "Ваш код Wallchart '26: %s. Он действует 10 минут.",
@@ -211,19 +225,19 @@ func validTimezoneCookie(tz string) bool {
 }
 
 type timezoneOption struct {
-	Value string
-	Label string
+	Value    string
+	LabelKey string
 }
 
 func timezoneOptions() []timezoneOption {
 	return []timezoneOption{
-		{Value: defaultTimezone, Label: "МСК"},
-		{Value: "Europe/Kaliningrad", Label: "Калининград"},
-		{Value: "Europe/Samara", Label: "Самара"},
-		{Value: "Asia/Yekaterinburg", Label: "Екатеринбург"},
-		{Value: "Asia/Novosibirsk", Label: "Новосибирск"},
-		{Value: "Asia/Vladivostok", Label: "Владивосток"},
-		{Value: "UTC", Label: "UTC"},
+		{Value: defaultTimezone, LabelKey: "tz.moscow"},
+		{Value: "Europe/Kaliningrad", LabelKey: "tz.kaliningrad"},
+		{Value: "Europe/Samara", LabelKey: "tz.samara"},
+		{Value: "Asia/Yekaterinburg", LabelKey: "tz.yekaterinburg"},
+		{Value: "Asia/Novosibirsk", LabelKey: "tz.novosibirsk"},
+		{Value: "Asia/Vladivostok", LabelKey: "tz.vladivostok"},
+		{Value: "UTC", LabelKey: "tz.utc"},
 	}
 }
 
