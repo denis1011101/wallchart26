@@ -123,7 +123,7 @@ var messages = map[string]map[string]string{
 		"intro.start":             "Начать угадывать",
 		"tz.label":                "Часовой пояс",
 		"tz.auto":                 "Авто",
-		"tz.moscow":               "МСК",
+		"tz.moscow":               "Москва",
 		"tz.kaliningrad":          "Калининград",
 		"tz.samara":               "Самара",
 		"tz.yekaterinburg":        "Екатеринбург",

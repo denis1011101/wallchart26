@@ -66,7 +66,7 @@ names, so teams **must** be `key → {en, ru}`. Resolution:
   `new Intl.DateTimeFormat(lang, {timeZone, dateStyle, timeStyle})` — this gets **both** localized
   month names and the chosen tz in one place, for free.
 - tz choices persisted in cookie `tz` (default `Europe/Moscow`). Header `<select>` with a short list:
-  `Europe/Moscow` (МСК), `Europe/Kaliningrad`, `Europe/Samara`, `Asia/Yekaterinburg`,
+  `Europe/Moscow`, `Europe/Kaliningrad`, `Europe/Samara`, `Asia/Yekaterinburg`,
   `Asia/Novosibirsk`, `Asia/Vladivostok`, `UTC`, plus an "auto (browser)" option. The script reads
   the cookie; "auto" uses `Intl.DateTimeFormat().resolvedOptions().timeZone`.
 - `isoTime(t) string` = `t.UTC().Format(time.RFC3339)` (new funcmap func). `formatKickoff` stays as
