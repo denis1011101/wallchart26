@@ -1,0 +1,74 @@
+package main
+
+templ MePage(data pageData) {
+	@Layout(data) {
+		<main class="shell">
+			<section class="panel">
+				<div class="section-head">
+					<h1>{ t(data.Lang, "me.title") }</h1>
+					<span class="save-state" id="saveState">{ t(data.Lang, "me.autosave") }</span>
+				</div>
+				<div class="matches">
+					for _, m := range data.Matches {
+						@PredictForm(m, data)
+					}
+				</div>
+				<datalist id="team-options">
+					for _, option := range data.TeamOptions {
+						<option value={ option }></option>
+					}
+				</datalist>
+			</section>
+		</main>
+	}
+}
+
+templ PredictForm(m matchRow, data pageData) {
+	<form
+		class="match-row predict-form"
+		data-match={ int64Text(m.ID) }
+		hx-post="/predict"
+		hx-trigger="change delay:400ms, blur from:input"
+		hx-target={ "#match-status-" + int64Text(m.ID) }
+		hx-swap="outerHTML"
+	>
+		<input type="hidden" name="match_id" value={ int64Text(m.ID) }/>
+		<div class="match-meta">
+			<span class="stage">{ stageLabel(m, data.Lang) }</span>
+			<time datetime={ isoTime(m.Kickoff) } data-ts>{ formatKickoff(m.Kickoff) }</time>
+		</div>
+		<div class="teams">
+			<span>{ teamName(m.Home, data.Lang) }</span>
+			<span class="dash">{ t(data.Lang, "match.vs") }</span>
+			<span>{ teamName(m.Away, data.Lang) }</span>
+		</div>
+		<div class="score-cells">
+			<input name="home" inputmode="numeric" pattern="[0-9]*" min="0" max="99" value={ scoreValue(m.PredHome) } disabled?={ m.Locked } aria-label={ teamName(m.Home, data.Lang) }/>
+			<span>-</span>
+			<input name="away" inputmode="numeric" pattern="[0-9]*" min="0" max="99" value={ scoreValue(m.PredAway) } disabled?={ m.Locked } aria-label={ teamName(m.Away, data.Lang) }/>
+		</div>
+		if isKnockout(m) {
+			<div class="team-picks">
+				<input name="home_team" list="team-options" maxlength="80" value={ teamName(teamGuessHome(m), data.Lang) } disabled?={ m.Locked } placeholder={ t(data.Lang, "match.hometeam") } aria-label={ t(data.Lang, "match.hometeam") }/>
+				<input name="away_team" list="team-options" maxlength="80" value={ teamName(teamGuessAway(m), data.Lang) } disabled?={ m.Locked } placeholder={ t(data.Lang, "match.awayteam") } aria-label={ t(data.Lang, "match.awayteam") }/>
+			</div>
+		}
+		@MatchStatus(m, data.Lang)
+	</form>
+}
+
+templ MatchStatus(m matchRow, lang string) {
+	<div class="status" id={ "match-status-" + int64Text(m.ID) }>
+		if resultText(m) != "" {
+			{ t(lang, "match.result") } { resultText(m) }
+		} else if m.Locked {
+			{ t(lang, "match.locked") }
+		} else {
+			{ t(lang, "match.open") }
+		}
+	</div>
+}
+
+templ SavedStatus(matchID int64, lang string) {
+	<div class="status" id={ "match-status-" + int64Text(matchID) }>{ t(lang, "me.saved") }</div>
+}

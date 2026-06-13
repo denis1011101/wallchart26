@@ -1,0 +1,18 @@
+package main
+
+templ VerifyPage(data pageData) {
+	@Layout(data) {
+		<main class="shell narrow">
+			<form class="panel login" method="post" action="/auth/verify">
+				<h1>{ t(data.Lang, "verify.title") }</h1>
+				if data.Message != "" {
+					<p class="message">{ data.Message }</p>
+				}
+				<input name="email" type="email" maxlength="254" value={ data.AuthEmail } placeholder={ t(data.Lang, "auth.email") } autocomplete="email" required/>
+				<input name="name" maxlength="80" value={ data.AuthName } placeholder={ t(data.Lang, "auth.name") }/>
+				<input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder={ t(data.Lang, "auth.code") } autocomplete="one-time-code" required/>
+				<button class="button primary" type="submit">{ t(data.Lang, "auth.verify") }</button>
+			</form>
+		</main>
+	}
+}

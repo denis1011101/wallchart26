@@ -1,0 +1,17 @@
+[Unit]
+Description=Wallchart '26
+After=network.target
+
+[Service]
+ExecStart=/opt/wallchart26/wallchart26
+WorkingDirectory=/opt/wallchart26
+Environment=ADDR=:8080
+Environment=DATABASE_PATH=/opt/wallchart26/data/wallchart26.sqlite
+Environment=COOKIE_SECURE=true
+EnvironmentFile=/opt/wallchart26/wallchart26.env
+Restart=on-failure
+DynamicUser=yes
+StateDirectory=wallchart26
+
+[Install]
+WantedBy=multi-user.target

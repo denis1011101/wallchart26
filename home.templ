@@ -1,0 +1,75 @@
+package main
+
+templ HomePage(data pageData) {
+	@Layout(data) {
+		<main class="shell">
+			<section class="hero">
+				<div>
+					<p class="eyebrow">{ t(data.Lang, "hero.eyebrow") }</p>
+					<h1>{ t(data.Lang, "brand") }</h1>
+					<p class="lede">{ t(data.Lang, "hero.lede") }</p>
+				</div>
+				if data.CurrentUser != nil {
+					<a class="button primary" href="/me">{ t(data.Lang, "hero.open") }</a>
+				} else {
+					<form class="join auth-form" method="post" action="/auth/request">
+						<input name="email" type="email" maxlength="254" placeholder={ t(data.Lang, "auth.email") } autocomplete="email" required/>
+						<input name="name" maxlength="80" placeholder={ t(data.Lang, "auth.name") }/>
+						<button class="button primary" type="submit">{ t(data.Lang, "auth.sendcode") }</button>
+					</form>
+				}
+			</section>
+			@LeaderboardPanel(data)
+		</main>
+		<div class="intro" id="intro">
+			<div class="intro-card">
+				<h2>{ t(data.Lang, "intro.title") }</h2>
+				<p>{ t(data.Lang, "intro.p1") }</p>
+				<p>{ t(data.Lang, "intro.p2") }</p>
+				<button class="button primary" id="closeIntro" type="button">{ t(data.Lang, "intro.start") }</button>
+			</div>
+		</div>
+		<script>
+			const intro = document.getElementById('intro');
+			if (localStorage.getItem('wallchart_intro_seen')) intro.hidden = true;
+			document.getElementById('closeIntro').addEventListener('click', () => {
+			  localStorage.setItem('wallchart_intro_seen', '1');
+			  intro.hidden = true;
+			});
+		</script>
+	}
+}
+
+templ LeaderboardPanel(data pageData) {
+	<section class="panel" id="leaderboard" hx-get="/leaderboard" hx-trigger="every 30s" hx-swap="outerHTML">
+		<div class="section-head">
+			<h2>{ t(data.Lang, "nav.leaderboard") }</h2>
+			<span>{ intText(len(data.Leaderboard)) } { plural(data.Lang, len(data.Leaderboard), t(data.Lang, "leaderboard.player"), t(data.Lang, "leaderboard.players_few"), t(data.Lang, "leaderboard.players")) }</span>
+		</div>
+		<table>
+			<thead>
+				<tr>
+					<th>{ t(data.Lang, "table.rank") }</th>
+					<th>{ t(data.Lang, "table.name") }</th>
+					<th>{ t(data.Lang, "table.points") }</th>
+					<th>{ t(data.Lang, "table.exact") }</th>
+					<th>{ t(data.Lang, "table.predictions") }</th>
+				</tr>
+			</thead>
+			<tbody>
+				for i, row := range data.Leaderboard {
+					<tr>
+						<td>{ intText(i + 1) }</td>
+						<td><a href={ userURL(row.UserID) }>{ row.Name }</a></td>
+						<td><strong>{ intText(row.Points) }</strong></td>
+						<td>{ intText(row.Exact) }</td>
+						<td>{ intText(row.Predictions) }</td>
+					</tr>
+				}
+				if len(data.Leaderboard) == 0 {
+					<tr><td colspan="5" class="empty">{ t(data.Lang, "table.empty") }</td></tr>
+				}
+			</tbody>
+		</table>
+	</section>
+}

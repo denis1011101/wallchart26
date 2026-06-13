@@ -1,0 +1,7 @@
+wallchart26
+data/
+*.sqlite
+*.sqlite-*
+.env
+*.env
+wallchart26.env

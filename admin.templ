@@ -1,0 +1,40 @@
+package main
+
+templ AdminPage(data pageData) {
+	@Layout(data) {
+		<main class="shell">
+			<section class="panel">
+				<div class="section-head">
+					<h1>{ t(data.Lang, "admin.title") }</h1>
+					<span>{ t(data.Lang, "admin.manual") }</span>
+				</div>
+				<div class="matches admin-list">
+					for _, m := range data.Matches {
+						<form class="match-row admin-form" method="post" action="/admin/result">
+							<input type="hidden" name="match_id" value={ int64Text(m.ID) }/>
+							<div class="match-meta">
+								<span class="stage">{ stageLabel(m, data.Lang) }</span>
+								<time datetime={ isoTime(m.Kickoff) } data-ts>{ formatKickoff(m.Kickoff) }</time>
+							</div>
+							<div class="admin-teams">
+								<input name="home_team" list="team-options" value={ teamName(m.Home, data.Lang) } aria-label={ t(data.Lang, "match.hometeam") }/>
+								<input name="away_team" list="team-options" value={ teamName(m.Away, data.Lang) } aria-label={ t(data.Lang, "match.awayteam") }/>
+							</div>
+							<div class="score-cells">
+								<input name="home_score" inputmode="numeric" value={ scoreValue(m.HomeScore) } aria-label="Home score"/>
+								<span>-</span>
+								<input name="away_score" inputmode="numeric" value={ scoreValue(m.AwayScore) } aria-label="Away score"/>
+							</div>
+							<button class="button" type="submit">{ t(data.Lang, "admin.save") }</button>
+						</form>
+					}
+				</div>
+				<datalist id="team-options">
+					for _, option := range data.TeamOptions {
+						<option value={ option }></option>
+					}
+				</datalist>
+			</section>
+		</main>
+	}
+}

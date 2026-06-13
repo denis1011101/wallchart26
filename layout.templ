@@ -1,0 +1,90 @@
+package main
+
+templ Layout(data pageData) {
+	<!doctype html>
+	<html lang={ data.Lang }>
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ data.Title }</title>
+			<link rel="stylesheet" href="/static/app.css"/>
+			<script src="/static/htmx.min.js" defer></script>
+		</head>
+		<body data-tz={ data.Timezone }>
+			@Header(data)
+			{ children... }
+			@Timefmt()
+		</body>
+	</html>
+}
+
+templ Header(data pageData) {
+	<header class="topbar">
+		<a class="brand" href="/">{ t(data.Lang, "brand") }</a>
+		<nav>
+			<a href="/">{ t(data.Lang, "nav.leaderboard") }</a>
+			if data.CurrentUser != nil {
+				<a href="/me">{ t(data.Lang, "nav.mychart") }</a>
+				<form class="nav-form" method="post" action="/logout">
+					<button type="submit">{ t(data.Lang, "nav.logout") }</button>
+				</form>
+			} else {
+				<a href="/login">{ t(data.Lang, "nav.login") }</a>
+			}
+			if data.Lang == "ru" {
+				<a class="lang-toggle" href="/lang?to=en&next=/" data-to="en">EN</a>
+			} else {
+				<a class="lang-toggle" href="/lang?to=ru&next=/" data-to="ru">RU</a>
+			}
+			<label class="tz-control">
+				<span>{ t(data.Lang, "tz.label") }</span>
+				<select id="tzSelect">
+					<option value="auto" selected?={ data.Timezone == "auto" }>{ t(data.Lang, "tz.auto") }</option>
+					for _, option := range timezoneOptions() {
+						<option value={ option.Value } selected?={ data.Timezone == option.Value }>{ option.Label }</option>
+					}
+				</select>
+			</label>
+		</nav>
+	</header>
+}
+
+templ Timefmt() {
+	<script>
+		(() => {
+		  const cookieValue = (name) => document.cookie.split('; ').find((row) => row.startsWith(name + '='))?.split('=')[1] || '';
+		  const setCookie = (name, value) => {
+		    document.cookie = name + '=' + encodeURIComponent(value) + '; path=/; max-age=31536000; samesite=lax';
+		  };
+		  const formatTimes = (root = document) => {
+		    const selectedTZ = document.getElementById('tzSelect')?.value || document.body.dataset.tz || 'Europe/Moscow';
+		    const timeZone = selectedTZ === 'auto' ? Intl.DateTimeFormat().resolvedOptions().timeZone : selectedTZ;
+		    root.querySelectorAll('time[data-ts]').forEach((node) => {
+		      const date = new Date(node.dateTime);
+		      node.textContent = new Intl.DateTimeFormat(document.documentElement.lang || 'ru', {
+		        dateStyle: 'medium',
+		        timeStyle: 'short',
+		        timeZone,
+		      }).format(date);
+		    });
+		  };
+		  document.querySelectorAll('.lang-toggle').forEach((link) => {
+		    const next = location.pathname + location.search;
+		    link.href = '/lang?to=' + encodeURIComponent(link.dataset.to) + '&next=' + encodeURIComponent(next);
+		  });
+		  const select = document.getElementById('tzSelect');
+		  const cookieTZ = decodeURIComponent(cookieValue('tz'));
+		  if (select && cookieTZ && [...select.options].some((option) => option.value === cookieTZ)) {
+		    select.value = cookieTZ;
+		  }
+		  formatTimes();
+		  select?.addEventListener('change', () => {
+		    setCookie('tz', select.value);
+		    location.reload();
+		  });
+		  document.body.addEventListener('htmx:afterSwap', (event) => {
+		    formatTimes(event.target);
+		  });
+		})();
+	</script>
+}

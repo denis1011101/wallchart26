@@ -1,0 +1,41 @@
+package main
+
+templ UserPage(data pageData) {
+	@Layout(data) {
+		<main class="shell">
+			<section class="panel">
+				<div class="section-head">
+					<h1>{ data.ViewedUser.Name }</h1>
+					<span>{ t(data.Lang, "user.unlock") }</span>
+				</div>
+				<div class="matches">
+					for _, m := range data.Matches {
+						<div class="match-row">
+							<div class="match-meta">
+								<span class="stage">{ stageLabel(m, data.Lang) }</span>
+								<time datetime={ isoTime(m.Kickoff) } data-ts>{ formatKickoff(m.Kickoff) }</time>
+							</div>
+							<div class="teams">
+								<span>{ teamName(m.Home, data.Lang) }</span>
+								<span class="dash">{ t(data.Lang, "match.vs") }</span>
+								<span>{ teamName(m.Away, data.Lang) }</span>
+							</div>
+							<div class="readonly-score">
+								if predictionText(m) != "" {
+									{ predictionText(m) }
+								} else {
+									{ t(data.Lang, "match.hidden") }
+								}
+							</div>
+							<div class="status">
+								if resultText(m) != "" {
+									{ t(data.Lang, "match.result") } { resultText(m) }
+								}
+							</div>
+						</div>
+					}
+				</div>
+			</section>
+		</main>
+	}
+}

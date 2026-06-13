@@ -1,0 +1,17 @@
+package main
+
+templ LoginPage(data pageData) {
+	@Layout(data) {
+		<main class="shell narrow">
+			<form class="panel login" method="post" action="/auth/request">
+				<h1>{ t(data.Lang, "login.title") }</h1>
+				if data.Message != "" {
+					<p class="message">{ data.Message }</p>
+				}
+				<input name="email" type="email" maxlength="254" value={ data.AuthEmail } placeholder={ t(data.Lang, "auth.email") } autocomplete="email" required/>
+				<input name="name" maxlength="80" value={ data.AuthName } placeholder={ t(data.Lang, "auth.name") }/>
+				<button class="button primary" type="submit">{ t(data.Lang, "auth.sendcode") }</button>
+			</form>
+		</main>
+	}
+}
