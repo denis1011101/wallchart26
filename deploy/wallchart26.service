@@ -5,11 +5,18 @@ After=network.target
 [Service]
 ExecStart=/opt/wallchart26/wallchart26
 WorkingDirectory=/opt/wallchart26
-Environment=ADDR=:8080
-Environment=DATABASE_PATH=/opt/wallchart26/data/wallchart26.sqlite
+# Loopback-only; nginx terminates TLS and proxies here. 8080 is taken by headscale.
+Environment=ADDR=127.0.0.1:8090
+# StateDirectory below provisions /var/lib/wallchart26, writable by the DynamicUser.
+Environment=DATABASE_PATH=/var/lib/wallchart26/wallchart26.sqlite
 Environment=COOKIE_SECURE=true
+# Behind nginx: trust X-Forwarded-For/X-Real-IP so rate limiting sees real client IPs.
+Environment=TRUST_PROXY_HEADERS=true
+# Skip .env file loading; all config comes from systemd.
+Environment=APP_ENV=production
 EnvironmentFile=/opt/wallchart26/wallchart26.env
 Restart=on-failure
+RestartSec=2
 DynamicUser=yes
 StateDirectory=wallchart26
 
