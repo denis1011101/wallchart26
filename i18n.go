@@ -18,6 +18,7 @@ const defaultTimezone = "Europe/Moscow"
 var messages = map[string]map[string]string{
 	"en": {
 		"brand":                   "Wallchart '26",
+		"meta.description":        "Predict every score of the FIFA World Cup 2026. The office score-prediction sheet, online: 104 matches, one leaderboard, no ads, no money. Sign in by email and fill in your cells.",
 		"nav.leaderboard":         "Leaderboard",
 		"nav.mychart":             "My chart",
 		"nav.login":               "Log in",
@@ -69,6 +70,7 @@ var messages = map[string]map[string]string{
 	},
 	"ru": {
 		"brand":                   "Wallchart '26",
+		"meta.description":        "Прогнозируйте счёт каждого матча чемпионата мира 2026. Офисный бланк прогнозов, только онлайн: 104 матча, одна таблица лидеров, без рекламы и денег. Вход по почте — заполняйте клетки.",
 		"nav.leaderboard":         "Таблица",
 		"nav.mychart":             "Мой бланк",
 		"nav.login":               "Войти",

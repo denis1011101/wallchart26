@@ -63,6 +63,7 @@ func (a *app) login(w http.ResponseWriter, r *http.Request) {
 	}
 	a.render(w, r, pageData{
 		Title:     t(localeFromRequest(r), "login.title"),
+		NoIndex:   true,
 		AuthEmail: strings.TrimSpace(r.URL.Query().Get("email")),
 	}, LoginPage)
 }
@@ -77,6 +78,7 @@ func (a *app) authRequest(w http.ResponseWriter, r *http.Request) {
 		lang := localeFromRequest(r)
 		a.render(w, r, pageData{
 			Title:   t(lang, "login.title"),
+			NoIndex: true,
 			Message: t(lang, "auth.check"),
 		}, LoginPage)
 		return
@@ -112,6 +114,7 @@ ON CONFLICT(email_norm) DO UPDATE SET
 	lang := localeFromRequest(r)
 	a.render(w, r, pageData{
 		Title:     t(lang, "verify.title"),
+		NoIndex:   true,
 		Message:   t(lang, "auth.check"),
 		AuthEmail: email,
 		AuthName:  name,
@@ -126,7 +129,7 @@ func (a *app) authVerify(w http.ResponseWriter, r *http.Request) {
 	email, emailNorm, err := normalizeEmail(r.FormValue("email"))
 	if err != nil {
 		lang := localeFromRequest(r)
-		a.render(w, r, pageData{Title: t(lang, "verify.title"), Message: t(lang, "auth.invalid")}, VerifyPage)
+		a.render(w, r, pageData{Title: t(lang, "verify.title"), NoIndex: true, Message: t(lang, "auth.invalid")}, VerifyPage)
 		return
 	}
 	name := cleanDisplayName(r.FormValue("name"), email)
@@ -135,6 +138,7 @@ func (a *app) authVerify(w http.ResponseWriter, r *http.Request) {
 		lang := localeFromRequest(r)
 		a.render(w, r, pageData{
 			Title:     t(lang, "verify.title"),
+			NoIndex:   true,
 			Message:   t(lang, "auth.invalid"),
 			AuthEmail: email,
 			AuthName:  name,
@@ -186,6 +190,7 @@ func (a *app) me(w http.ResponseWriter, r *http.Request) {
 	lang := localeFromRequest(r)
 	a.render(w, r, pageData{
 		Title:       t(lang, "me.title"),
+		NoIndex:     true,
 		CurrentUser: current,
 		Matches:     matches,
 		TeamOptions: localizedTeamOptions(lang),
@@ -316,6 +321,7 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request) {
 	lang := localeFromRequest(r)
 	a.render(w, r, pageData{
 		Title:       t(lang, "admin.title"),
+		NoIndex:     true,
 		CurrentUser: current,
 		Matches:     matches,
 		TeamOptions: localizedTeamOptions(lang),
@@ -421,6 +427,7 @@ func (a *app) userPage(w http.ResponseWriter, r *http.Request) {
 	}
 	a.render(w, r, pageData{
 		Title:       viewed.Name,
+		NoIndex:     true,
 		CurrentUser: current,
 		ViewedUser:  viewed,
 		Matches:     matches,
@@ -467,6 +474,12 @@ func (a *app) render(w http.ResponseWriter, r *http.Request, data pageData, page
 	}
 	if data.Timezone == "" {
 		data.Timezone = timezoneFromRequest(r)
+	}
+	if data.Path == "" {
+		data.Path = r.URL.Path
+	}
+	if data.Description == "" {
+		data.Description = t(data.Lang, "meta.description")
 	}
 	a.renderComponent(w, r, page(data))
 }

@@ -86,6 +86,9 @@ type leaderboardRow struct {
 
 type pageData struct {
 	Title       string
+	Description string
+	Path        string
+	NoIndex     bool
 	Lang        string
 	Timezone    string
 	CurrentUser *user
@@ -146,6 +149,9 @@ func run() error {
 		return err
 	}
 	mux.Handle("GET /static/", cacheStatic(http.StripPrefix("/static/", http.FileServerFS(staticFiles))))
+	mux.HandleFunc("GET /robots.txt", a.robots)
+	mux.HandleFunc("GET /sitemap.xml", a.sitemap)
+	mux.HandleFunc("GET /favicon.ico", a.faviconICO)
 	mux.HandleFunc("GET /", a.home)
 	mux.HandleFunc("GET /leaderboard", a.leaderboardFragment)
 	mux.HandleFunc("GET /lang", a.setLang)

@@ -7,6 +7,27 @@ templ Layout(data pageData) {
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>{ data.Title }</title>
+			<meta name="description" content={ data.Description }/>
+			if data.NoIndex {
+				<meta name="robots" content="noindex, follow"/>
+			} else {
+				<meta name="robots" content="index, follow"/>
+			}
+			<link rel="canonical" href={ canonicalURL(data.Path) }/>
+			<meta property="og:type" content="website"/>
+			<meta property="og:site_name" content="Wallchart '26"/>
+			<meta property="og:locale" content={ ogLocale(data.Lang) }/>
+			<meta property="og:title" content={ data.Title }/>
+			<meta property="og:description" content={ data.Description }/>
+			<meta property="og:url" content={ canonicalURL(data.Path) }/>
+			<meta property="og:image" content={ canonicalURL("/static/og.png") }/>
+			<meta name="twitter:card" content="summary_large_image"/>
+			<meta name="twitter:title" content={ data.Title }/>
+			<meta name="twitter:description" content={ data.Description }/>
+			<meta name="twitter:image" content={ canonicalURL("/static/og.png") }/>
+			<meta name="theme-color" content="#1f7a58"/>
+			<link rel="icon" href="/static/favicon.svg" type="image/svg+xml"/>
+			<link rel="apple-touch-icon" href="/static/apple-touch-icon.png"/>
 			<link rel="stylesheet" href="/static/app.css"/>
 			<script src="/static/htmx.min.js" defer></script>
 		</head>
