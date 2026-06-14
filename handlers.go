@@ -237,6 +237,10 @@ func (a *app) predict(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, err)
 		return
 	}
+	if a.lockPlayoffs && stage != "Group" {
+		http.Error(w, "Prediction is locked", http.StatusConflict)
+		return
+	}
 	if !kickoff.After(a.now()) {
 		http.Error(w, "Prediction is locked", http.StatusConflict)
 		return
@@ -393,6 +397,10 @@ UPDATE matches SET home = ?, away = ?, home_score = ?, away_score = ? WHERE id =
 		a.serverError(w, err)
 		return
 	}
+	if r.Header.Get("HX-Request") == "true" {
+		a.renderComponent(w, r, AdminStatus(matchID, lang, true))
+		return
+	}
 	http.Redirect(w, r, "/admin", http.StatusSeeOther)
 }
 
@@ -416,14 +424,6 @@ func (a *app) userPage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		a.serverError(w, err)
 		return
-	}
-	for i := range matches {
-		if matches[i].Kickoff.After(a.now()) {
-			matches[i].PredHome.Valid = false
-			matches[i].PredAway.Valid = false
-			matches[i].PredHomeTeam.Valid = false
-			matches[i].PredAwayTeam.Valid = false
-		}
 	}
 	a.render(w, r, pageData{
 		Title:       viewed.Name,

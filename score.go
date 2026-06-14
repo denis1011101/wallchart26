@@ -7,12 +7,6 @@ type ScoreInput struct {
 	PredAway int
 	ResHome  int
 	ResAway  int
-
-	Stage        string
-	PredHomeTeam string
-	PredAwayTeam string
-	HomeTeam     string
-	AwayTeam     string
 }
 
 func score(s ScoreInput) int {
@@ -26,22 +20,7 @@ func score(s ScoreInput) int {
 		points = 1
 	}
 
-	if s.Stage != "Group" {
-		if sameTeam(s.PredHomeTeam, s.HomeTeam) {
-			points++
-		}
-		if sameTeam(s.PredAwayTeam, s.AwayTeam) {
-			points++
-		}
-	}
-
 	return points
-}
-
-func sameTeam(a, b string) bool {
-	aa := normalizeText(a)
-	bb := normalizeText(b)
-	return aa != "" && aa == bb
 }
 
 func normalizeText(s string) string {

@@ -50,6 +50,7 @@ type app struct {
 	smtp              smtpConfig
 	loginRateLimiter  *loginRequestLimiter
 	trustProxyHeaders bool
+	lockPlayoffs      bool
 	now               func() time.Time
 }
 
@@ -140,6 +141,7 @@ func run() error {
 		smtp:              loadSMTPConfig(),
 		loginRateLimiter:  newLoginRequestLimiter(loginIPLimit, loginIPWindow, loginGlobalLimit, loginGlobalWindow),
 		trustProxyHeaders: getenv("TRUST_PROXY_HEADERS", "false") == "true",
+		lockPlayoffs:      getenv("LOCK_PLAYOFFS", "false") == "true",
 		now:               func() time.Time { return time.Now().UTC() },
 	}
 

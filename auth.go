@@ -220,6 +220,12 @@ func (a *app) sendLoginCode(ctx context.Context, email, code, lang string) error
 	if from == "" {
 		from = a.smtp.User
 	}
+	// The From: header may carry a display name ("Name <addr>"), but the SMTP
+	// envelope (MAIL FROM) needs a bare address, else servers reject it (501).
+	envelopeFrom := from
+	if parsed, err := mail.ParseAddress(from); err == nil {
+		envelopeFrom = parsed.Address
+	}
 	addr := a.smtp.Host + ":" + a.smtp.Port
 	var auth smtp.Auth
 	if a.smtp.User != "" {
@@ -232,7 +238,7 @@ func (a *app) sendLoginCode(ctx context.Context, email, code, lang string) error
 		"",
 		emailBody(lang, code),
 	}, "\r\n")
-	return sendMail(ctx, a.smtp.Host, a.smtp.Port, addr, auth, from, []string{email}, []byte(msg))
+	return sendMail(ctx, a.smtp.Host, a.smtp.Port, addr, auth, envelopeFrom, []string{email}, []byte(msg))
 }
 
 func sendMail(ctx context.Context, host, port, addr string, auth smtp.Auth, from string, to []string, msg []byte) error {

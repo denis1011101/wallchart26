@@ -34,6 +34,9 @@ templ Layout(data pageData) {
 		<body data-tz={ data.Timezone }>
 			@Header(data)
 			{ children... }
+			<footer class="sitefooter">
+				<span>{ t(data.Lang, "footer.author") }: <a href="https://denis1011101.xyz/" target="_blank" rel="noopener">Denis</a></span>
+			</footer>
 			@Timefmt()
 		</body>
 	</html>

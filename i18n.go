@@ -18,6 +18,7 @@ const defaultTimezone = "Europe/Moscow"
 var messages = map[string]map[string]string{
 	"en": {
 		"brand":                   "Wallchart '26",
+		"footer.author":           "Author",
 		"meta.description":        "Predict every score of the FIFA World Cup 2026. The office score-prediction sheet, online: 104 matches, one leaderboard, no ads, no money. Sign in by email and fill in your cells.",
 		"nav.leaderboard":         "Leaderboard",
 		"nav.mychart":             "My chart",
@@ -44,20 +45,26 @@ var messages = map[string]map[string]string{
 		"table.exact":             "Exact",
 		"table.predictions":       "Predictions",
 		"table.empty":             "No players yet.",
+		"scoring.title":           "How points work",
+		"scoring.exact":           "Exact score",
+		"scoring.diff":            "Correct goal difference",
+		"scoring.outcome":         "Correct result (win / draw / loss)",
+		"scoring.note":            "Only the best matching tier counts.",
 		"me.title":                "My wallchart",
 		"me.autosave":             "Autosaves on blur",
 		"me.saved":                "Saved",
-		"user.unlock":             "Predictions unlock after kickoff",
+		"user.unlock":             "Player's predictions",
 		"match.vs":                "vs",
-		"match.hidden":            "Hidden",
+		"match.hidden":            "No prediction",
 		"match.result":            "Result",
 		"match.locked":            "Locked",
 		"match.open":              "Open",
 		"match.hometeam":          "Home team",
 		"match.awayteam":          "Away team",
 		"admin.title":             "Results",
-		"admin.manual":            "Manual entry",
+		"admin.manual":            "Autosaves on blur",
 		"admin.save":              "Save",
+		"admin.saved":             "Saved",
 		"intro.title":             "Before kickoff",
 		"intro.p1":                "Every big tournament, my dad's office had the same ritual: someone printed out the full match schedule, with little empty cells next to every game, and everyone filled in their scores with a pen.",
 		"intro.p2":                "This is that sheet of paper, online. No ads, no money, no passwords. Sign in by email, fill in your cells, and may the best guesser win.",
@@ -77,6 +84,7 @@ var messages = map[string]map[string]string{
 	},
 	"ru": {
 		"brand":                   "Wallchart '26",
+		"footer.author":           "Автор",
 		"meta.description":        "Прогнозируйте счёт каждого матча чемпионата мира 2026. Офисный бланк прогнозов, только онлайн: 104 матча, одна таблица лидеров, без рекламы и денег. Вход по почте — заполняйте клетки.",
 		"nav.leaderboard":         "Таблица",
 		"nav.mychart":             "Мой бланк",
@@ -103,20 +111,26 @@ var messages = map[string]map[string]string{
 		"table.exact":             "Точных",
 		"table.predictions":       "Прогнозов",
 		"table.empty":             "Пока нет игроков.",
+		"scoring.title":           "Как считаются очки",
+		"scoring.exact":           "Точный счёт",
+		"scoring.diff":            "Угаданная разница мячей",
+		"scoring.outcome":         "Угаданный исход (победа / ничья / поражение)",
+		"scoring.note":            "Засчитывается только лучший из уровней.",
 		"me.title":                "Мой бланк",
 		"me.autosave":             "Сохраняется автоматически",
 		"me.saved":                "Сохранено",
-		"user.unlock":             "Прогнозы открываются после стартового свистка",
+		"user.unlock":             "Прогнозы игрока",
 		"match.vs":                "—",
-		"match.hidden":            "Скрыто",
+		"match.hidden":            "Нет прогноза",
 		"match.result":            "Результат",
 		"match.locked":            "Закрыто",
 		"match.open":              "Открыто",
 		"match.hometeam":          "Хозяева",
 		"match.awayteam":          "Гости",
 		"admin.title":             "Результаты",
-		"admin.manual":            "Ручной ввод",
+		"admin.manual":            "Сохраняется автоматически",
 		"admin.save":              "Сохранить",
+		"admin.saved":             "Сохранено",
 		"intro.title":             "Перед стартом",
 		"intro.p1":                "Каждый крупный турнир в офисе моего отца был один и тот же ритуал: кто-то распечатывал полное расписание матчей с пустыми клетками у каждой игры, и все вписывали свои счёты ручкой.",
 		"intro.p2":                "Это тот самый лист бумаги, только онлайн. Без рекламы, без денег, без паролей. Войдите по почте, заполните клетки, и пусть победит лучший прогнозист.",
@@ -383,6 +397,33 @@ func predictionText(m matchRow) string {
 		return ""
 	}
 	return fmt.Sprintf("%d-%d", m.PredHome.Int64, m.PredAway.Int64)
+}
+
+// publicPredictionText renders another player's prediction for the read-only
+// page: the score and, for knockout ties, the picked teams (which can exist
+// without a score).
+func publicPredictionText(m matchRow, lang string) string {
+	score := predictionText(m)
+	if isKnockout(m) {
+		home := teamName(teamGuessHome(m), lang)
+		away := teamName(teamGuessAway(m), lang)
+		var pick string
+		switch {
+		case home != "" && away != "":
+			pick = home + " – " + away
+		case home != "":
+			pick = home
+		case away != "":
+			pick = away
+		}
+		if pick != "" {
+			if score != "" {
+				return pick + " · " + score
+			}
+			return pick
+		}
+	}
+	return score
 }
 
 func resultText(m matchRow) string {

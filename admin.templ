@@ -10,7 +10,15 @@ templ AdminPage(data pageData) {
 				</div>
 				<div class="matches admin-list">
 					for _, m := range data.Matches {
-						<form class="match-row admin-form" method="post" action="/admin/result">
+						<form
+							class="match-row admin-form"
+							method="post"
+							action="/admin/result"
+							hx-post="/admin/result"
+							hx-trigger="change delay:400ms, blur from:input"
+							hx-target={ "#admin-status-" + int64Text(m.ID) }
+							hx-swap="outerHTML"
+						>
 							<input type="hidden" name="match_id" value={ int64Text(m.ID) }/>
 							<div class="match-meta">
 								<span class="stage">{ stageLabel(m, data.Lang) }</span>
@@ -25,7 +33,7 @@ templ AdminPage(data pageData) {
 								<span>-</span>
 								<input name="away_score" inputmode="numeric" value={ scoreValue(m.AwayScore) } aria-label="Away score"/>
 							</div>
-							<button class="button" type="submit">{ t(data.Lang, "admin.save") }</button>
+							@AdminStatus(m.ID, data.Lang, false)
 						</form>
 					}
 				</div>
@@ -37,4 +45,12 @@ templ AdminPage(data pageData) {
 			</section>
 		</main>
 	}
+}
+
+templ AdminStatus(matchID int64, lang string, saved bool) {
+	<div class="status admin-status" id={ "admin-status-" + int64Text(matchID) }>
+		if saved {
+			{ t(lang, "admin.saved") }
+		}
+	</div>
 }

@@ -21,8 +21,8 @@ templ UserPage(data pageData) {
 								<span>{ teamName(m.Away, data.Lang) }</span>
 							</div>
 							<div class="readonly-score">
-								if predictionText(m) != "" {
-									{ predictionText(m) }
+								if publicPredictionText(m, data.Lang) != "" {
+									{ publicPredictionText(m, data.Lang) }
 								} else {
 									{ t(data.Lang, "match.hidden") }
 								}

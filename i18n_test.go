@@ -66,27 +66,10 @@ func TestTeamName(t *testing.T) {
 	}
 }
 
-func TestResolveTeamNameCanonicalizesBothLocalesForScoring(t *testing.T) {
+func TestResolveTeamNameCanonicalizesBothLocales(t *testing.T) {
 	en := resolveTeamName("Brazil")
 	ru := resolveTeamName("Бразилия")
 	if en != "Brazil" || ru != "Brazil" {
 		t.Fatalf("resolveTeamName canonical keys = en %q, ru %q; want Brazil", en, ru)
-	}
-
-	for _, guess := range []string{en, ru} {
-		got := score(ScoreInput{
-			PredHome:     1,
-			PredAway:     0,
-			ResHome:      0,
-			ResAway:      1,
-			Stage:        "Round of 16",
-			PredHomeTeam: guess,
-			HomeTeam:     "Brazil",
-			PredAwayTeam: "Spain",
-			AwayTeam:     "Canada",
-		})
-		if got != 1 {
-			t.Fatalf("score team bonus with %q = %d, want 1", guess, got)
-		}
 	}
 }

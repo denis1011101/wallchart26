@@ -20,9 +20,27 @@ templ HomePage(data pageData) {
 				}
 			</section>
 			@LeaderboardPanel(data)
+			<section class="panel scoring">
+				<div class="section-head">
+					<h2>{ t(data.Lang, "scoring.title") }</h2>
+				</div>
+				<ul class="scoring-list">
+					<li><span class="scoring-pts">4</span> { t(data.Lang, "scoring.exact") }</li>
+					<li><span class="scoring-pts">2</span> { t(data.Lang, "scoring.diff") }</li>
+					<li><span class="scoring-pts">1</span> { t(data.Lang, "scoring.outcome") }</li>
+				</ul>
+				<p class="scoring-note">{ t(data.Lang, "scoring.note") }</p>
+			</section>
 		</main>
 		<div class="intro" id="intro">
 			<div class="intro-card">
+				<div class="intro-lang">
+					if data.Lang == "ru" {
+						<a class="lang-toggle" href="/lang?to=en&next=/" data-to="en">English</a>
+					} else {
+						<a class="lang-toggle" href="/lang?to=ru&next=/" data-to="ru">Русский</a>
+					}
+				</div>
 				<h2>{ t(data.Lang, "intro.title") }</h2>
 				<p>{ t(data.Lang, "intro.p1") }</p>
 				<p>{ t(data.Lang, "intro.p2") }</p>

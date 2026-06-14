@@ -154,11 +154,11 @@ func UserPage(data pageData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				if predictionText(m) != "" {
+				if publicPredictionText(m, data.Lang) != "" {
 					var templ_7745c5c3_Var11 string
-					templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(predictionText(m))
+					templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(publicPredictionText(m, data.Lang))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `user.templ`, Line: 25, Col: 28}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `user.templ`, Line: 25, Col: 45}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 					if templ_7745c5c3_Err != nil {

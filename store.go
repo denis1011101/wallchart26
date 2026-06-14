@@ -341,7 +341,7 @@ ORDER BY m.kickoff_utc, m.id
 		if err != nil {
 			return nil, err
 		}
-		m.Locked = !admin && !m.Kickoff.After(a.now())
+		m.Locked = !admin && ((a.lockPlayoffs && m.Stage != "Group") || !m.Kickoff.After(a.now()))
 		matches = append(matches, m)
 	}
 	return matches, rows.Err()
@@ -349,8 +349,7 @@ ORDER BY m.kickoff_utc, m.id
 
 func (a *app) leaderboard(ctx context.Context) ([]leaderboardRow, error) {
 	rows, err := a.db.QueryContext(ctx, `
-SELECT u.id, u.name, p.user_id, m.stage, m.home, m.away, m.home_score, m.away_score,
-       p.home, p.away, p.home_team, p.away_team
+SELECT u.id, u.name, p.user_id, m.home_score, m.away_score, p.home, p.away
 FROM users u
 LEFT JOIN predictions p ON p.user_id = u.id
 LEFT JOIN matches m ON m.id = p.match_id AND m.home_score IS NOT NULL AND m.away_score IS NOT NULL
@@ -367,9 +366,8 @@ ORDER BY u.created_at, u.id
 		var uid int64
 		var name string
 		var predUserID sql.NullInt64
-		var stage, homeTeam, awayTeam, predHomeTeam, predAwayTeam sql.NullString
 		var resHome, resAway, predHome, predAway sql.NullInt64
-		if err := rows.Scan(&uid, &name, &predUserID, &stage, &homeTeam, &awayTeam, &resHome, &resAway, &predHome, &predAway, &predHomeTeam, &predAwayTeam); err != nil {
+		if err := rows.Scan(&uid, &name, &predUserID, &resHome, &resAway, &predHome, &predAway); err != nil {
 			return nil, err
 		}
 		row, ok := byUser[uid]
@@ -385,8 +383,6 @@ ORDER BY u.created_at, u.id
 			got := score(ScoreInput{
 				PredHome: int(predHome.Int64), PredAway: int(predAway.Int64),
 				ResHome: int(resHome.Int64), ResAway: int(resAway.Int64),
-				Stage: stage.String, PredHomeTeam: predHomeTeam.String, PredAwayTeam: predAwayTeam.String,
-				HomeTeam: homeTeam.String, AwayTeam: awayTeam.String,
 			})
 			row.Points += got
 			if exactScore(int(predHome.Int64), int(predAway.Int64), int(resHome.Int64), int(resAway.Int64)) {
