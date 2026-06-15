@@ -80,7 +80,7 @@ var messages = map[string]map[string]string{
 		"tz.utc":                  "UTC",
 		"team.tbd":                "TBD",
 		"email.subject":           "Wallchart '26 login code",
-		"email.body":              "Your Wallchart '26 code is %s. It expires in 10 minutes.",
+		"email.body":              "Your Wallchart '26 login code:\r\n\r\n%s\r\n\r\nIt expires in 10 minutes. If you didn't request it, you can ignore this email.",
 	},
 	"ru": {
 		"brand":                   "Wallchart '26",
@@ -115,7 +115,7 @@ var messages = map[string]map[string]string{
 		"scoring.exact":           "Точный счёт",
 		"scoring.diff":            "Угаданная разница мячей",
 		"scoring.outcome":         "Угаданный исход (победа / ничья / поражение)",
-		"scoring.note":            "Засчитывается только лучший из уровней.",
+		"scoring.note":            "Очки не суммируются.",
 		"me.title":                "Мой бланк",
 		"me.autosave":             "Сохраняется автоматически",
 		"me.saved":                "Сохранено",
@@ -146,7 +146,7 @@ var messages = map[string]map[string]string{
 		"tz.utc":                  "UTC",
 		"team.tbd":                "не определено",
 		"email.subject":           "Код входа Wallchart '26",
-		"email.body":              "Ваш код Wallchart '26: %s. Он действует 10 минут.",
+		"email.body":              "Код входа Wallchart '26:\r\n\r\n%s\r\n\r\nКод действует 10 минут. Если вы его не запрашивали, просто проигнорируйте это письмо.",
 	},
 }
 
