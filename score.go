@@ -9,6 +9,22 @@ type ScoreInput struct {
 	ResAway  int
 }
 
+// awardPoints returns the points a prediction earns for a match, doubling the
+// score for playoff (non-group) matches.
+func awardPoints(stage string, s ScoreInput) int {
+	points := score(s)
+	if isPlayoffStage(stage) {
+		points *= 2
+	}
+	return points
+}
+
+// isPlayoffStage reports whether a match stage is part of the knockout bracket
+// (anything other than the group stage).
+func isPlayoffStage(stage string) bool {
+	return stage != "" && stage != "Group"
+}
+
 func score(s ScoreInput) int {
 	points := 0
 

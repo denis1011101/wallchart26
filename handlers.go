@@ -146,7 +146,7 @@ func (a *app) authVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := a.findOrCreateUser(r.Context(), email, emailNorm, name)
+	userID, err := a.findOrCreateUser(r.Context(), email, emailNorm, name, localeFromRequest(r))
 	if err != nil {
 		a.serverError(w, err)
 		return
@@ -176,6 +176,59 @@ func (a *app) logout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
+func (a *app) unsubscribe(w http.ResponseWriter, r *http.Request) {
+	lang := localeFromRequest(r)
+	token := strings.TrimSpace(r.URL.Query().Get("t"))
+	if token == "" {
+		token = strings.TrimSpace(r.FormValue("t"))
+	}
+	data := pageData{Title: t(lang, "unsub.title"), NoIndex: true}
+
+	valid := false
+	if token != "" {
+		var id int64
+		err := a.db.QueryRowContext(r.Context(), `SELECT id FROM users WHERE token = ?`, token).Scan(&id)
+		if err == nil {
+			valid = true
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			a.serverError(w, err)
+			return
+		}
+	}
+
+	if r.Method == http.MethodPost {
+		if !valid {
+			data.Message = t(lang, "unsub.invalid")
+			a.render(w, r, data, UnsubscribePage)
+			return
+		}
+		if _, err := a.db.ExecContext(r.Context(), `UPDATE users SET unsubscribed = 1 WHERE token = ?`, token); err != nil {
+			a.serverError(w, err)
+			return
+		}
+		data.Message = t(lang, "unsub.done")
+		a.render(w, r, data, UnsubscribePage)
+		return
+	}
+
+	if valid {
+		data.Token = token
+	}
+	a.render(w, r, data, UnsubscribePage)
+}
+
+// nextMatchID returns the id of the earliest match that hasn't kicked off yet,
+// or 0 if none. Matches are expected in chronological order. Used to scroll a
+// blank to the nearest upcoming match on open.
+func nextMatchID(matches []matchRow, now time.Time) int64 {
+	for _, m := range matches {
+		if m.Kickoff.After(now) {
+			return m.ID
+		}
+	}
+	return 0
+}
+
 func (a *app) me(w http.ResponseWriter, r *http.Request) {
 	current, ok := a.currentUser(r)
 	if !ok {
@@ -189,11 +242,12 @@ func (a *app) me(w http.ResponseWriter, r *http.Request) {
 	}
 	lang := localeFromRequest(r)
 	a.render(w, r, pageData{
-		Title:       t(lang, "me.title"),
-		NoIndex:     true,
-		CurrentUser: current,
-		Matches:     matches,
-		TeamOptions: localizedTeamOptions(lang),
+		Title:        t(lang, "me.title"),
+		NoIndex:      true,
+		CurrentUser:  current,
+		Matches:      matches,
+		TeamOptions:  localizedTeamOptions(lang),
+		FocusMatchID: nextMatchID(matches, a.now()),
 	}, MePage)
 }
 
@@ -296,8 +350,11 @@ ON CONFLICT(user_id, match_id) DO UPDATE SET
 		a.serverError(w, err)
 		return
 	}
+	// Keep the user's notification language in sync with their current choice.
+	lang := localeFromRequest(r)
+	_, _ = a.db.ExecContext(r.Context(), `UPDATE users SET lang = ? WHERE id = ? AND lang <> ?`, lang, current.ID, lang)
 	if r.Header.Get("HX-Request") == "true" {
-		a.renderComponent(w, r, SavedStatus(matchID, localeFromRequest(r)))
+		a.renderComponent(w, r, SavedStatus(matchID, lang))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -324,11 +381,12 @@ func (a *app) admin(w http.ResponseWriter, r *http.Request) {
 	}
 	lang := localeFromRequest(r)
 	a.render(w, r, pageData{
-		Title:       t(lang, "admin.title"),
-		NoIndex:     true,
-		CurrentUser: current,
-		Matches:     matches,
-		TeamOptions: localizedTeamOptions(lang),
+		Title:        t(lang, "admin.title"),
+		NoIndex:      true,
+		CurrentUser:  current,
+		Matches:      matches,
+		TeamOptions:  localizedTeamOptions(lang),
+		FocusMatchID: nextMatchID(matches, a.now()),
 	}, AdminPage)
 }
 
@@ -426,11 +484,12 @@ func (a *app) userPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.render(w, r, pageData{
-		Title:       viewed.Name,
-		NoIndex:     true,
-		CurrentUser: current,
-		ViewedUser:  viewed,
-		Matches:     matches,
+		Title:        viewed.Name,
+		NoIndex:      true,
+		CurrentUser:  current,
+		ViewedUser:   viewed,
+		Matches:      matches,
+		FocusMatchID: nextMatchID(matches, a.now()),
 	}, UserPage)
 }
 

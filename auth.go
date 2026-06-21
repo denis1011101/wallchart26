@@ -11,6 +11,7 @@ import (
 	"errors"
 	"log"
 	"math/big"
+	"mime"
 	"net"
 	"net/http"
 	"net/mail"
@@ -152,7 +153,7 @@ SELECT code_hash, expires_at, attempts FROM login_codes WHERE email_norm = ?
 	return true
 }
 
-func (a *app) findOrCreateUser(ctx context.Context, email, emailNorm, name string) (int64, error) {
+func (a *app) findOrCreateUser(ctx context.Context, email, emailNorm, name, lang string) (int64, error) {
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -167,8 +168,8 @@ func (a *app) findOrCreateUser(ctx context.Context, email, emailNorm, name strin
 			return 0, err
 		}
 		res, err := tx.ExecContext(ctx, `
-INSERT INTO users(name, email, email_norm, token, created_at) VALUES (?, ?, ?, ?, ?)
-`, name, email, emailNorm, token, a.now().Format(time.RFC3339))
+INSERT INTO users(name, email, email_norm, token, lang, created_at) VALUES (?, ?, ?, ?, ?, ?)
+`, name, email, emailNorm, token, lang, a.now().Format(time.RFC3339))
 		if err != nil {
 			return 0, err
 		}
@@ -180,8 +181,8 @@ INSERT INTO users(name, email, email_norm, token, created_at) VALUES (?, ?, ?, ?
 		return 0, err
 	} else {
 		_, err = tx.ExecContext(ctx, `
-UPDATE users SET email = ?, name = CASE WHEN ? <> '' THEN ? ELSE name END WHERE id = ?
-`, email, name, name, id)
+UPDATE users SET email = ?, name = CASE WHEN ? <> '' THEN ? ELSE name END, lang = ? WHERE id = ?
+`, email, name, name, lang, id)
 		if err != nil {
 			return 0, err
 		}
@@ -216,6 +217,17 @@ func (a *app) sendLoginCode(ctx context.Context, email, code, lang string) error
 		log.Printf("login code for %s: %s", email, code)
 		return nil
 	}
+	return a.sendEmail(ctx, email, emailSubject(lang), emailBody(lang, code))
+}
+
+// sendEmail delivers a plain-text message to a single recipient over the
+// configured SMTP server. When SMTP is unconfigured it logs and returns nil so
+// local/dev runs don't fail.
+func (a *app) sendEmail(ctx context.Context, to, subject, body string) error {
+	if a.smtp.Host == "" {
+		log.Printf("email to %s: %s", to, subject)
+		return nil
+	}
 	from := a.smtp.From
 	if from == "" {
 		from = a.smtp.User
@@ -231,14 +243,19 @@ func (a *app) sendLoginCode(ctx context.Context, email, code, lang string) error
 	if a.smtp.User != "" {
 		auth = smtp.PlainAuth("", a.smtp.User, a.smtp.Pass, a.smtp.Host)
 	}
+	// Subjects and bodies contain UTF-8 (incl. Cyrillic). Headers must be
+	// ASCII, so the Subject is RFC 2047 encoded; the body is declared UTF-8.
 	msg := strings.Join([]string{
-		"To: " + email,
+		"To: " + to,
 		"From: " + from,
-		"Subject: " + emailSubject(lang),
+		"Subject: " + mime.BEncoding.Encode("UTF-8", subject),
+		"MIME-Version: 1.0",
+		"Content-Type: text/plain; charset=\"UTF-8\"",
+		"Content-Transfer-Encoding: 8bit",
 		"",
-		emailBody(lang, code),
+		body,
 	}, "\r\n")
-	return sendMail(ctx, a.smtp.Host, a.smtp.Port, addr, auth, envelopeFrom, []string{email}, []byte(msg))
+	return sendMail(ctx, a.smtp.Host, a.smtp.Port, addr, auth, envelopeFrom, []string{to}, []byte(msg))
 }
 
 func sendMail(ctx context.Context, host, port, addr string, auth smtp.Auth, from string, to []string, msg []byte) error {

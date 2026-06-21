@@ -1,0 +1,14 @@
+package main
+
+// FocusScript scrolls the page to the row marked id="focus-match" (the nearest
+// upcoming match) once on load. A no-op when no such row is present.
+templ FocusScript() {
+	<script>
+		addEventListener("DOMContentLoaded", function () {
+			var el = document.getElementById("focus-match");
+			if (el) {
+				el.scrollIntoView({ block: "center" });
+			}
+		});
+	</script>
+}

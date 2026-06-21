@@ -1,0 +1,24 @@
+package main
+
+templ UnsubscribePage(data pageData) {
+	@Layout(data) {
+		<main class="shell narrow">
+			<section class="panel">
+				<div class="section-head">
+					<h1>{ t(data.Lang, "unsub.title") }</h1>
+				</div>
+				if data.Message != "" {
+					<p class="message">{ data.Message }</p>
+				} else if data.Token != "" {
+					<p>{ t(data.Lang, "unsub.prompt") }</p>
+					<form method="post" action="/unsubscribe">
+						<input type="hidden" name="t" value={ data.Token }/>
+						<button class="button primary" type="submit">{ t(data.Lang, "unsub.button") }</button>
+					</form>
+				} else {
+					<p class="message">{ t(data.Lang, "unsub.invalid") }</p>
+				}
+			</section>
+		</main>
+	}
+}

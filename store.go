@@ -90,6 +90,19 @@ CREATE TABLE IF NOT EXISTS sessions (
 	expires_at TEXT NOT NULL,
 	created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS notifications (
+	user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	kind TEXT NOT NULL,
+	dedupe_key TEXT NOT NULL,
+	sent_at TEXT NOT NULL,
+	UNIQUE(user_id, dedupe_key)
+);
+
+CREATE TABLE IF NOT EXISTS app_state (
+	key TEXT PRIMARY KEY,
+	value TEXT NOT NULL
+);
 `)
 	if err != nil {
 		return err
@@ -98,6 +111,12 @@ CREATE TABLE IF NOT EXISTS sessions (
 		return err
 	}
 	if err := ensureColumn(ctx, db, "users", "email_norm", "TEXT"); err != nil {
+		return err
+	}
+	if err := ensureColumn(ctx, db, "users", "lang", "TEXT NOT NULL DEFAULT 'ru'"); err != nil {
+		return err
+	}
+	if err := ensureColumn(ctx, db, "users", "unsubscribed", "INTEGER NOT NULL DEFAULT 0"); err != nil {
 		return err
 	}
 	if _, err := db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS users_email_norm_idx ON users(email_norm) WHERE email_norm IS NOT NULL`); err != nil {
@@ -349,7 +368,7 @@ ORDER BY m.kickoff_utc, m.id
 
 func (a *app) leaderboard(ctx context.Context) ([]leaderboardRow, error) {
 	rows, err := a.db.QueryContext(ctx, `
-SELECT u.id, u.name, p.user_id, m.home_score, m.away_score, p.home, p.away
+SELECT u.id, u.name, p.user_id, m.stage, m.home_score, m.away_score, p.home, p.away
 FROM users u
 LEFT JOIN predictions p ON p.user_id = u.id
 LEFT JOIN matches m ON m.id = p.match_id AND m.home_score IS NOT NULL AND m.away_score IS NOT NULL
@@ -366,8 +385,9 @@ ORDER BY u.created_at, u.id
 		var uid int64
 		var name string
 		var predUserID sql.NullInt64
+		var stage sql.NullString
 		var resHome, resAway, predHome, predAway sql.NullInt64
-		if err := rows.Scan(&uid, &name, &predUserID, &resHome, &resAway, &predHome, &predAway); err != nil {
+		if err := rows.Scan(&uid, &name, &predUserID, &stage, &resHome, &resAway, &predHome, &predAway); err != nil {
 			return nil, err
 		}
 		row, ok := byUser[uid]
@@ -380,7 +400,7 @@ ORDER BY u.created_at, u.id
 			row.Predictions++
 		}
 		if predHome.Valid && predAway.Valid && resHome.Valid && resAway.Valid {
-			got := score(ScoreInput{
+			got := awardPoints(stage.String, ScoreInput{
 				PredHome: int(predHome.Int64), PredAway: int(predAway.Int64),
 				ResHome: int(resHome.Int64), ResAway: int(resAway.Int64),
 			})

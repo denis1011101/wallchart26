@@ -10,15 +10,24 @@ templ UserPage(data pageData) {
 				</div>
 				<div class="matches">
 					for _, m := range data.Matches {
-						<div class="match-row">
+						<div
+							class="match-row"
+							if m.ID == data.FocusMatchID {
+								id="focus-match"
+							}
+						>
 							<div class="match-meta">
 								<span class="stage">{ stageLabel(m, data.Lang) }</span>
 								<time datetime={ isoTime(m.Kickoff) } data-ts>{ formatKickoff(m.Kickoff) }</time>
 							</div>
 							<div class="teams">
-								<span>{ teamName(m.Home, data.Lang) }</span>
+								<span>@Flag(m.Home) {
+										{ teamName(m.Home, data.Lang) }
+									}</span>
 								<span class="dash">{ t(data.Lang, "match.vs") }</span>
-								<span>{ teamName(m.Away, data.Lang) }</span>
+								<span>@Flag(m.Away) {
+										{ teamName(m.Away, data.Lang) }
+									}</span>
 							</div>
 							<div class="readonly-score">
 								if publicPredictionText(m, data.Lang) != "" {
@@ -37,5 +46,6 @@ templ UserPage(data pageData) {
 				</div>
 			</section>
 		</main>
+		@FocusScript()
 	}
 }

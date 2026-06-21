@@ -12,6 +12,9 @@ templ AdminPage(data pageData) {
 					for _, m := range data.Matches {
 						<form
 							class="match-row admin-form"
+							if m.ID == data.FocusMatchID {
+								id="focus-match"
+							}
 							method="post"
 							action="/admin/result"
 							hx-post="/admin/result"
@@ -25,8 +28,8 @@ templ AdminPage(data pageData) {
 								<time datetime={ isoTime(m.Kickoff) } data-ts>{ formatKickoff(m.Kickoff) }</time>
 							</div>
 							<div class="admin-teams">
-								<input name="home_team" list="team-options" value={ teamName(m.Home, data.Lang) } aria-label={ t(data.Lang, "match.hometeam") }/>
-								<input name="away_team" list="team-options" value={ teamName(m.Away, data.Lang) } aria-label={ t(data.Lang, "match.awayteam") }/>
+								<label class="admin-team">@Flag(m.Home) <input name="home_team" list="team-options" value={ teamName(m.Home, data.Lang) } aria-label={ t(data.Lang, "match.hometeam") }/></label>
+								<label class="admin-team">@Flag(m.Away) <input name="away_team" list="team-options" value={ teamName(m.Away, data.Lang) } aria-label={ t(data.Lang, "match.awayteam") }/></label>
 							</div>
 							<div class="score-cells">
 								<input name="home_score" inputmode="numeric" value={ scoreValue(m.HomeScore) } aria-label="Home score"/>
@@ -44,6 +47,7 @@ templ AdminPage(data pageData) {
 				</datalist>
 			</section>
 		</main>
+		@FocusScript()
 	}
 }
 

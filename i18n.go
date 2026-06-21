@@ -50,8 +50,23 @@ var messages = map[string]map[string]string{
 		"scoring.diff":            "Correct goal difference",
 		"scoring.outcome":         "Correct result (win / draw / loss)",
 		"scoring.note":            "Only the best matching tier counts.",
+		"scoring.playoff":         "In the playoffs, every match is worth double points.",
+		"notify.open":             "Open your wallchart: %s",
+		"notify.unsubscribe":      "Unsubscribe from these emails: %s",
+		"notify.missing.subject":  "You have a match today without a prediction",
+		"notify.missing.body":     "There's a match today you haven't filled in yet. Add your score before kickoff so it counts.",
+		"notify.playoff.subject":  "The playoffs have started",
+		"notify.playoff.body":     "The knockout stage is underway — and every playoff match is worth double points. Fill in your predictions.",
+		"notify.leader.subject":   "There's a new leader",
+		"notify.leader.body":      "%s has taken the top of the leaderboard. Think you can catch up?",
+		"unsub.title":             "Email notifications",
+		"unsub.prompt":            "Stop receiving notification emails from Wallchart '26?",
+		"unsub.button":            "Unsubscribe",
+		"unsub.done":              "You're unsubscribed. You won't get notification emails anymore.",
+		"unsub.invalid":           "This unsubscribe link is invalid or has expired.",
 		"me.title":                "My wallchart",
 		"me.autosave":             "Autosaves on blur",
+		"me.autosave.hint":        "(on mobile, after entering a score tap anywhere outside the field to make sure it saves)",
 		"me.saved":                "Saved",
 		"user.unlock":             "Player's predictions",
 		"match.vs":                "vs",
@@ -116,8 +131,23 @@ var messages = map[string]map[string]string{
 		"scoring.diff":            "Угаданная разница мячей",
 		"scoring.outcome":         "Угаданный исход (победа / ничья / поражение)",
 		"scoring.note":            "Очки не суммируются.",
+		"scoring.playoff":         "В плей-офф каждый матч приносит вдвое больше очков.",
+		"notify.open":             "Открыть свою таблицу: %s",
+		"notify.unsubscribe":      "Отписаться от писем: %s",
+		"notify.missing.subject":  "Сегодня матч, а прогноза нет",
+		"notify.missing.body":     "Сегодня есть матч, по которому вы ещё не заполнили прогноз. Впишите счёт до начала игры, чтобы он засчитался.",
+		"notify.playoff.subject":  "Начался плей-офф",
+		"notify.playoff.body":     "Стартовал плей-офф — и за каждый матч даётся вдвое больше очков. Заполните прогнозы.",
+		"notify.leader.subject":   "Сменился лидер",
+		"notify.leader.body":      "%s вышел на первое место в таблице. Сможете догнать?",
+		"unsub.title":             "Уведомления на почту",
+		"unsub.prompt":            "Отписаться от писем-уведомлений Wallchart '26?",
+		"unsub.button":            "Отписаться",
+		"unsub.done":              "Вы отписались. Письма-уведомления больше не будут приходить.",
+		"unsub.invalid":           "Ссылка для отписки недействительна или устарела.",
 		"me.title":                "Мой бланк",
 		"me.autosave":             "Сохраняется автоматически",
+		"me.autosave.hint":        "(для точности на мобильных устройствах после ввода счёта кликните на место вне заполняемого поля)",
 		"me.saved":                "Сохранено",
 		"user.unlock":             "Прогнозы игрока",
 		"match.vs":                "—",
@@ -360,6 +390,29 @@ func emailSubject(lang string) string {
 
 func emailBody(lang, code string) string {
 	return fmt.Sprintf(t(lang, "email.body"), code)
+}
+
+// notifyMessage builds the subject and plain-text body for a notification
+// email, localized by the user's stored language, with a link to the site and
+// an unsubscribe link appended.
+func (a *app) notifyMessage(lang string, kind notifyKind, leaderName, token string) (string, string) {
+	lang = normalizeLang(lang)
+	var subject, body string
+	switch kind {
+	case kindMissingPrediction:
+		subject = t(lang, "notify.missing.subject")
+		body = t(lang, "notify.missing.body")
+	case kindPlayoffStart:
+		subject = t(lang, "notify.playoff.subject")
+		body = t(lang, "notify.playoff.body")
+	case kindLeaderChange:
+		subject = t(lang, "notify.leader.subject")
+		body = fmt.Sprintf(t(lang, "notify.leader.body"), leaderName)
+	}
+	openLine := fmt.Sprintf(t(lang, "notify.open"), a.baseURL+"/me")
+	unsubLine := fmt.Sprintf(t(lang, "notify.unsubscribe"), a.baseURL+"/unsubscribe?t="+token)
+	body = body + "\n\n" + openLine + "\n\n" + unsubLine
+	return subject, body
 }
 
 func formatKickoff(t time.Time) string {

@@ -51,6 +51,7 @@ type app struct {
 	loginRateLimiter  *loginRequestLimiter
 	trustProxyHeaders bool
 	lockPlayoffs      bool
+	baseURL           string
 	now               func() time.Time
 }
 
@@ -86,21 +87,23 @@ type leaderboardRow struct {
 }
 
 type pageData struct {
-	Title       string
-	Description string
-	Path        string
-	NoIndex     bool
-	Lang        string
-	Timezone    string
-	CurrentUser *user
-	Matches     []matchRow
-	Leaderboard []leaderboardRow
-	Users       []user
-	ViewedUser  *user
-	Message     string
-	AuthEmail   string
-	AuthName    string
-	TeamOptions []string
+	Title        string
+	Description  string
+	Path         string
+	NoIndex      bool
+	Lang         string
+	Timezone     string
+	CurrentUser  *user
+	Matches      []matchRow
+	Leaderboard  []leaderboardRow
+	Users        []user
+	ViewedUser   *user
+	Message      string
+	AuthEmail    string
+	AuthName     string
+	TeamOptions  []string
+	Token        string
+	FocusMatchID int64
 }
 
 func main() {
@@ -142,6 +145,7 @@ func run() error {
 		loginRateLimiter:  newLoginRequestLimiter(loginIPLimit, loginIPWindow, loginGlobalLimit, loginGlobalWindow),
 		trustProxyHeaders: getenv("TRUST_PROXY_HEADERS", "false") == "true",
 		lockPlayoffs:      getenv("LOCK_PLAYOFFS", "false") == "true",
+		baseURL:           strings.TrimRight(getenv("BASE_URL", "https://wallchart26.com"), "/"),
 		now:               func() time.Time { return time.Now().UTC() },
 	}
 
@@ -157,6 +161,8 @@ func run() error {
 	mux.HandleFunc("GET /", a.home)
 	mux.HandleFunc("GET /leaderboard", a.leaderboardFragment)
 	mux.HandleFunc("GET /lang", a.setLang)
+	mux.HandleFunc("GET /unsubscribe", a.unsubscribe)
+	mux.HandleFunc("POST /unsubscribe", a.unsubscribe)
 	mux.HandleFunc("GET /login", a.login)
 	mux.HandleFunc("POST /auth/request", a.authRequest)
 	mux.HandleFunc("POST /auth/verify", a.authVerify)
@@ -180,6 +186,8 @@ func run() error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	go a.runNotifier(ctx)
 
 	errCh := make(chan error, 1)
 	go func() {
