@@ -291,7 +291,7 @@ func (a *app) predict(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, err)
 		return
 	}
-	if a.lockPlayoffs && stage != "Group" {
+	if a.stageLocked(stage) {
 		http.Error(w, "Prediction is locked", http.StatusConflict)
 		return
 	}
@@ -303,28 +303,8 @@ func (a *app) predict(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Fill both scores or neither", http.StatusBadRequest)
 		return
 	}
-
-	predHomeTeam := homeTeam
-	predAwayTeam := awayTeam
-	if stage != "Group" {
-		predHomeTeam = resolveTeamName(r.FormValue("home_team"))
-		predAwayTeam = resolveTeamName(r.FormValue("away_team"))
-	} else if !homeOK {
+	if !homeOK {
 		http.Error(w, "Fill both scores", http.StatusBadRequest)
-		return
-	}
-	if emptyKnockoutPrediction(stage, homeOK, predHomeTeam, predAwayTeam) {
-		if r.Header.Get("HX-Request") == "true" {
-			a.renderComponent(w, r, MatchStatus(matchRow{
-				ID:      matchID,
-				Stage:   stage,
-				Home:    homeTeam,
-				Away:    awayTeam,
-				Kickoff: kickoff,
-			}, localeFromRequest(r)))
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
@@ -345,7 +325,7 @@ ON CONFLICT(user_id, match_id) DO UPDATE SET
 	home_team = excluded.home_team,
 	away_team = excluded.away_team,
 	updated_at = excluded.updated_at
-`, current.ID, matchID, homeValue, awayValue, predHomeTeam, predAwayTeam, now, now)
+`, current.ID, matchID, homeValue, awayValue, homeTeam, awayTeam, now, now)
 	if err != nil {
 		a.serverError(w, err)
 		return
@@ -358,10 +338,6 @@ ON CONFLICT(user_id, match_id) DO UPDATE SET
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func emptyKnockoutPrediction(stage string, homeOK bool, predHomeTeam, predAwayTeam string) bool {
-	return stage != "Group" && !homeOK && predHomeTeam == "" && predAwayTeam == ""
 }
 
 func (a *app) admin(w http.ResponseWriter, r *http.Request) {

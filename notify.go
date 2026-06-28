@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -23,6 +24,7 @@ type notifyKind string
 
 const (
 	kindMissingPrediction notifyKind = "missing_prediction"
+	kindStageOpen         notifyKind = "stage_open"
 	kindPlayoffStart      notifyKind = "playoff_start"
 	kindLeaderChange      notifyKind = "leader_change"
 )
@@ -55,10 +57,11 @@ func (a *app) runNotifier(ctx context.Context) {
 	}
 }
 
-// runNotifications evaluates every trigger for every eligible recipient and
-// sends at most one email per user per pass (the cooldown further limits this
-// to one email per user every notifyCooldown). Triggers are checked in priority
-// order.
+// runNotifications evaluates every trigger for every eligible recipient. Most
+// triggers are checked in priority order and capped at one email per user per
+// pass plus the cooldown. The stage-open announcement is the exception: a stage
+// is only open for a short window, so it is sent the moment a stage opens,
+// bypassing both the priority order and the cooldown (deduped once per stage).
 func (a *app) runNotifications(ctx context.Context) error {
 	now := a.now()
 
@@ -78,17 +81,35 @@ func (a *app) runNotifications(ctx context.Context) error {
 
 	today := now.UTC().Format("2006-01-02")
 	for _, r := range recipients {
+		// Stage-open announcements jump the queue: send immediately, ignoring the
+		// cooldown, so they can't arrive after the stage has already been played.
+		// Gated on an explicit LOCK_STAGES so an unconfigured prod (every stage
+		// "open") doesn't blast one email per stage.
+		if a.announceStages {
+			stage, err := a.openStageForUser(ctx, r.ID, now)
+			if err != nil {
+				return err
+			}
+			if stage != "" {
+				if err := a.sendNotification(ctx, r, kindStageOpen, "stage_open:"+stage, stage); err != nil {
+					log.Printf("notify %s -> %s: %v", kindStageOpen, r.Email, err)
+				}
+				// One email per user per pass; cooldown-gated triggers wait for a later pass.
+				continue
+			}
+		}
+
 		if withinCooldown(r.LastSent, now) {
 			continue
 		}
-		kind, dedupeKey, leaderName, err := a.pickTrigger(ctx, r, now, today, playoffStarted, changedLeaderID, changedLeaderName, leaderEventAt)
+		kind, dedupeKey, detail, err := a.pickTrigger(ctx, r, now, today, playoffStarted, changedLeaderID, changedLeaderName, leaderEventAt)
 		if err != nil {
 			return err
 		}
 		if kind == "" {
 			continue
 		}
-		if err := a.sendNotification(ctx, r, kind, dedupeKey, leaderName); err != nil {
+		if err := a.sendNotification(ctx, r, kind, dedupeKey, detail); err != nil {
 			log.Printf("notify %s -> %s: %v", kind, r.Email, err)
 		}
 	}
@@ -97,7 +118,9 @@ func (a *app) runNotifications(ctx context.Context) error {
 
 // pickTrigger returns the first applicable, not-yet-sent trigger for a
 // recipient, in priority order: missing prediction today, playoff start, then
-// leader change.
+// leader change. The returned detail string is the trigger-specific payload for
+// the message (the leader name). Stage-open announcements are handled separately
+// in runNotifications because they bypass the cooldown and priority order.
 func (a *app) pickTrigger(ctx context.Context, r recipient, now time.Time, today string, playoffStarted bool, changedLeaderID int64, changedLeaderName, leaderEventAt string) (notifyKind, string, string, error) {
 	missing, err := a.hasMissingPredictionToday(ctx, r.ID, now)
 	if err != nil {
@@ -141,8 +164,8 @@ func (a *app) pickTrigger(ctx context.Context, r recipient, now time.Time, today
 	return "", "", "", nil
 }
 
-func (a *app) sendNotification(ctx context.Context, r recipient, kind notifyKind, dedupeKey, leaderName string) error {
-	subject, body := a.notifyMessage(r.Lang, kind, leaderName, r.Token)
+func (a *app) sendNotification(ctx context.Context, r recipient, kind notifyKind, dedupeKey, detail string) error {
+	subject, body := a.notifyMessage(r.Lang, kind, detail, r.Token)
 
 	sendCtx, cancel := context.WithTimeout(ctx, notifySendTimeout)
 	defer cancel()
@@ -208,20 +231,71 @@ func (a *app) alreadySent(ctx context.Context, userID int64, dedupeKey string) (
 // them would be pointless since the prediction can no longer be saved.
 func (a *app) hasMissingPredictionToday(ctx context.Context, userID int64, now time.Time) (bool, error) {
 	nowStr := now.UTC().Format(time.RFC3339)
+	args := []any{nowStr, nowStr}
+
+	var lockedClause strings.Builder
+	if len(a.lockedStages) > 0 {
+		lockedClause.WriteString("\tAND m.stage NOT IN (")
+		first := true
+		for s := range a.lockedStages {
+			if !first {
+				lockedClause.WriteString(", ")
+			}
+			lockedClause.WriteString("?")
+			args = append(args, s)
+			first = false
+		}
+		lockedClause.WriteString(")\n")
+	}
+	args = append(args, userID)
+
 	var exists int
 	err := a.db.QueryRowContext(ctx, `
 SELECT EXISTS(
 	SELECT 1 FROM matches m
 	WHERE date(m.kickoff_utc) = date(?)
 	AND m.kickoff_utc > ?
-	AND NOT (? AND m.stage <> 'Group')
-	AND NOT EXISTS (
+`+lockedClause.String()+`	AND NOT EXISTS (
 		SELECT 1 FROM predictions p
 		WHERE p.user_id = ? AND p.match_id = m.id
 		AND p.home IS NOT NULL AND p.away IS NOT NULL
 	)
-)`, nowStr, nowStr, a.lockPlayoffs, userID).Scan(&exists)
+)`, args...).Scan(&exists)
 	return exists == 1, err
+}
+
+// openStageForUser returns the first knockout stage (in play order) that is open
+// for predictions for this user, or "" if none. A stage qualifies when it is not
+// locked, still has at least one match before kickoff, and the user has not yet
+// been sent its "stage_open:<stage>" announcement. Evaluating the dedupe per
+// user inside the scan is what lets a newly unlocked later stage be announced
+// even while an earlier, already-announced stage still has upcoming matches.
+func (a *app) openStageForUser(ctx context.Context, userID int64, now time.Time) (string, error) {
+	nowStr := now.UTC().Format(time.RFC3339)
+	for _, stage := range knockoutStages {
+		if a.stageLocked(stage) {
+			continue
+		}
+		var hasUpcoming int
+		err := a.db.QueryRowContext(ctx,
+			`SELECT EXISTS(SELECT 1 FROM matches WHERE stage = ? AND kickoff_utc > ?)`,
+			stage, nowStr,
+		).Scan(&hasUpcoming)
+		if err != nil {
+			return "", err
+		}
+		if hasUpcoming == 0 {
+			continue
+		}
+		sent, err := a.alreadySent(ctx, userID, "stage_open:"+stage)
+		if err != nil {
+			return "", err
+		}
+		if !sent {
+			return stage, nil
+		}
+	}
+	return "", nil
 }
 
 func (a *app) playoffsStarted(ctx context.Context, now time.Time) (bool, error) {

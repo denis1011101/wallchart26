@@ -51,10 +51,14 @@ var messages = map[string]map[string]string{
 		"scoring.outcome":         "Correct result (win / draw / loss)",
 		"scoring.note":            "Only the best matching tier counts.",
 		"scoring.playoff":         "In the playoffs, every match is worth double points.",
+		"scoring.playoff90":       "Playoff predictions are scored on the result after regular time. Extra time and penalties don't count.",
+		"scoring.stageopen":       "Each new playoff stage opens after the previous one is complete; subscribers get an email when it becomes available.",
 		"notify.open":             "Open your wallchart: %s",
 		"notify.unsubscribe":      "Unsubscribe from these emails: %s",
 		"notify.missing.subject":  "You have a match today without a prediction",
 		"notify.missing.body":     "There's a match today you haven't filled in yet. Add your score before kickoff so it counts.",
+		"notify.stage.subject":    "A new stage is open: %s",
+		"notify.stage.body":       "The %s is now open for predictions. Fill in your scores before kickoff — every playoff match is worth double points.",
 		"notify.playoff.subject":  "The playoffs have started",
 		"notify.playoff.body":     "The knockout stage is underway — and every playoff match is worth double points. Fill in your predictions.",
 		"notify.leader.subject":   "There's a new leader",
@@ -132,10 +136,14 @@ var messages = map[string]map[string]string{
 		"scoring.outcome":         "Угаданный исход (победа / ничья / поражение)",
 		"scoring.note":            "Очки не суммируются.",
 		"scoring.playoff":         "В плей-офф каждый матч приносит вдвое больше очков.",
+		"scoring.playoff90":       "В плей-офф очки начисляются по счёту основного времени. Дополнительное время и пенальти не учитываются.",
+		"scoring.stageopen":       "Каждая новая стадия плей-офф открывается после завершения предыдущей; подписчикам приходит письмо, когда стадия доступна.",
 		"notify.open":             "Открыть свою таблицу: %s",
 		"notify.unsubscribe":      "Отписаться от писем: %s",
 		"notify.missing.subject":  "Сегодня матч, а прогноза нет",
 		"notify.missing.body":     "Сегодня есть матч, по которому вы ещё не заполнили прогноз. Впишите счёт до начала игры, чтобы он засчитался.",
+		"notify.stage.subject":    "Открыта стадия: %s",
+		"notify.stage.body":       "Стадия «%s» доступна для прогнозов. Впишите счёт по матчам до начала игр — в плей-офф каждый матч приносит вдвое больше очков.",
 		"notify.playoff.subject":  "Начался плей-офф",
 		"notify.playoff.body":     "Стартовал плей-офф — и за каждый матч даётся вдвое больше очков. Заполните прогнозы.",
 		"notify.leader.subject":   "Сменился лидер",
@@ -395,19 +403,23 @@ func emailBody(lang, code string) string {
 // notifyMessage builds the subject and plain-text body for a notification
 // email, localized by the user's stored language, with a link to the site and
 // an unsubscribe link appended.
-func (a *app) notifyMessage(lang string, kind notifyKind, leaderName, token string) (string, string) {
+func (a *app) notifyMessage(lang string, kind notifyKind, detail, token string) (string, string) {
 	lang = normalizeLang(lang)
 	var subject, body string
 	switch kind {
 	case kindMissingPrediction:
 		subject = t(lang, "notify.missing.subject")
 		body = t(lang, "notify.missing.body")
+	case kindStageOpen:
+		stage := stageDisplayName(detail, lang)
+		subject = fmt.Sprintf(t(lang, "notify.stage.subject"), stage)
+		body = fmt.Sprintf(t(lang, "notify.stage.body"), stage)
 	case kindPlayoffStart:
 		subject = t(lang, "notify.playoff.subject")
 		body = t(lang, "notify.playoff.body")
 	case kindLeaderChange:
 		subject = t(lang, "notify.leader.subject")
-		body = fmt.Sprintf(t(lang, "notify.leader.body"), leaderName)
+		body = fmt.Sprintf(t(lang, "notify.leader.body"), detail)
 	}
 	openLine := fmt.Sprintf(t(lang, "notify.open"), a.baseURL+"/me")
 	unsubLine := fmt.Sprintf(t(lang, "notify.unsubscribe"), a.baseURL+"/unsubscribe?t="+token)
@@ -426,8 +438,14 @@ func stageLabel(m matchRow, lang string) string {
 		}
 		return "Group " + m.GroupName
 	}
+	return stageDisplayName(m.Stage, lang)
+}
+
+// stageDisplayName localizes a knockout stage name (not the group stage, which
+// needs a group letter — see stageLabel).
+func stageDisplayName(stage, lang string) string {
 	if normalizeLang(lang) == "ru" {
-		switch m.Stage {
+		switch stage {
 		case "Round of 32":
 			return "1/16 финала"
 		case "Round of 16":
@@ -442,7 +460,7 @@ func stageLabel(m matchRow, lang string) string {
 			return "Финал"
 		}
 	}
-	return m.Stage
+	return stage
 }
 
 func predictionText(m matchRow) string {
@@ -453,30 +471,9 @@ func predictionText(m matchRow) string {
 }
 
 // publicPredictionText renders another player's prediction for the read-only
-// page: the score and, for knockout ties, the picked teams (which can exist
-// without a score).
+// page.
 func publicPredictionText(m matchRow, lang string) string {
-	score := predictionText(m)
-	if isKnockout(m) {
-		home := teamName(teamGuessHome(m), lang)
-		away := teamName(teamGuessAway(m), lang)
-		var pick string
-		switch {
-		case home != "" && away != "":
-			pick = home + " – " + away
-		case home != "":
-			pick = home
-		case away != "":
-			pick = away
-		}
-		if pick != "" {
-			if score != "" {
-				return pick + " · " + score
-			}
-			return pick
-		}
-	}
-	return score
+	return predictionText(m)
 }
 
 func resultText(m matchRow) string {
@@ -484,24 +481,6 @@ func resultText(m matchRow) string {
 		return ""
 	}
 	return fmt.Sprintf("%d-%d", m.HomeScore.Int64, m.AwayScore.Int64)
-}
-
-func isKnockout(m matchRow) bool {
-	return m.Stage != "Group"
-}
-
-func teamGuessHome(m matchRow) string {
-	if m.PredHomeTeam.Valid {
-		return m.PredHomeTeam.String
-	}
-	return ""
-}
-
-func teamGuessAway(m matchRow) string {
-	if m.PredAwayTeam.Valid {
-		return m.PredAwayTeam.String
-	}
-	return ""
 }
 
 func int64Text(v int64) string {

@@ -6,9 +6,11 @@ templ MePage(data pageData) {
 			<section class="panel">
 				<div class="section-head">
 					<h1>{ t(data.Lang, "me.title") }</h1>
-					<span class="save-state" id="saveState">{ t(data.Lang, "me.autosave") }</span>
+					<div class="save-info">
+						<span class="save-state" id="saveState">{ t(data.Lang, "me.autosave") }</span>
+						<p class="autosave-hint">{ t(data.Lang, "me.autosave.hint") }</p>
+					</div>
 				</div>
-				<p class="autosave-hint">{ t(data.Lang, "me.autosave.hint") }</p>
 				<div class="matches">
 					for _, m := range data.Matches {
 						@PredictForm(m, data)
@@ -56,12 +58,6 @@ templ PredictForm(m matchRow, data pageData) {
 			<span>-</span>
 			<input name="away" inputmode="numeric" pattern="[0-9]*" min="0" max="99" value={ scoreValue(m.PredAway) } disabled?={ m.Locked } aria-label={ teamName(m.Away, data.Lang) }/>
 		</div>
-		if isKnockout(m) {
-			<div class="team-picks">
-				<input name="home_team" list="team-options" maxlength="80" value={ teamName(teamGuessHome(m), data.Lang) } disabled?={ m.Locked } placeholder={ t(data.Lang, "match.hometeam") } aria-label={ t(data.Lang, "match.hometeam") }/>
-				<input name="away_team" list="team-options" maxlength="80" value={ teamName(teamGuessAway(m), data.Lang) } disabled?={ m.Locked } placeholder={ t(data.Lang, "match.awayteam") } aria-label={ t(data.Lang, "match.awayteam") }/>
-			</div>
-		}
 		@MatchStatus(m, data.Lang)
 	</form>
 }

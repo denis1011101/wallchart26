@@ -2,8 +2,11 @@ package main
 
 import (
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -68,29 +71,53 @@ func TestClientIPTrustProxyHeaders(t *testing.T) {
 	}
 }
 
-func TestEmptyKnockoutPrediction(t *testing.T) {
-	tests := []struct {
-		name         string
-		stage        string
-		homeOK       bool
-		predHomeTeam string
-		predAwayTeam string
-		want         bool
-	}{
-		{name: "empty knockout", stage: "Round of 16", want: true},
-		{name: "group empty is not handled here", stage: "Group", want: false},
-		{name: "score filled", stage: "Round of 16", homeOK: true, want: false},
-		{name: "home team only", stage: "Round of 16", predHomeTeam: "Brazil", want: false},
-		{name: "away team only", stage: "Round of 16", predAwayTeam: "Japan", want: false},
+func TestPredictKnockoutRequiresScoresAndStoresMatchTeams(t *testing.T) {
+	a := newTestApp(t)
+	a.now = func() time.Time { return fixedTime(t, "2026-07-03T12:00:00Z") }
+	insertUser(t, a, 1, "Ann", "2026-01-01T00:00:00Z")
+	if _, err := a.db.Exec(
+		`INSERT INTO sessions(token, user_id, expires_at, created_at) VALUES('session-token', 1, '2026-12-31T00:00:00Z', '2026-07-03T12:00:00Z')`,
+	); err != nil {
+		t.Fatalf("insert session: %v", err)
+	}
+	if _, err := a.db.Exec(
+		`INSERT INTO matches(id, stage, home, away, kickoff_utc) VALUES(200, 'Round of 16', 'Brazil', 'Japan', '2026-07-05T18:00:00Z')`,
+	); err != nil {
+		t.Fatalf("insert match: %v", err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := emptyKnockoutPrediction(tt.stage, tt.homeOK, tt.predHomeTeam, tt.predAwayTeam)
-			if got != tt.want {
-				t.Fatalf("emptyKnockoutPrediction() = %v, want %v", got, tt.want)
-			}
-		})
+	emptyForm := url.Values{"match_id": {"200"}}
+	emptyReq := httptest.NewRequest(http.MethodPost, "/predict", strings.NewReader(emptyForm.Encode()))
+	emptyReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	emptyReq.AddCookie(&http.Cookie{Name: sessionCookieName, Value: "session-token"})
+	emptyRec := httptest.NewRecorder()
+	a.predict(emptyRec, emptyReq)
+	if emptyRec.Code != http.StatusBadRequest {
+		t.Fatalf("empty knockout prediction status = %d, want %d", emptyRec.Code, http.StatusBadRequest)
+	}
+	if !strings.Contains(emptyRec.Body.String(), "Fill both scores") {
+		t.Fatalf("empty knockout prediction body = %q, want Fill both scores", emptyRec.Body.String())
+	}
+
+	scoreForm := url.Values{"match_id": {"200"}, "home": {"2"}, "away": {"1"}}
+	scoreReq := httptest.NewRequest(http.MethodPost, "/predict", strings.NewReader(scoreForm.Encode()))
+	scoreReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	scoreReq.AddCookie(&http.Cookie{Name: sessionCookieName, Value: "session-token"})
+	scoreRec := httptest.NewRecorder()
+	a.predict(scoreRec, scoreReq)
+	if scoreRec.Code != http.StatusNoContent {
+		t.Fatalf("scored knockout prediction status = %d, want %d", scoreRec.Code, http.StatusNoContent)
+	}
+
+	var home, away int
+	var homeTeam, awayTeam string
+	if err := a.db.QueryRow(
+		`SELECT home, away, home_team, away_team FROM predictions WHERE user_id = 1 AND match_id = 200`,
+	).Scan(&home, &away, &homeTeam, &awayTeam); err != nil {
+		t.Fatalf("query prediction: %v", err)
+	}
+	if home != 2 || away != 1 || homeTeam != "Brazil" || awayTeam != "Japan" {
+		t.Fatalf("prediction = %d-%d %q/%q, want 2-1 Brazil/Japan", home, away, homeTeam, awayTeam)
 	}
 }
 

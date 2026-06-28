@@ -360,7 +360,7 @@ ORDER BY m.kickoff_utc, m.id
 		if err != nil {
 			return nil, err
 		}
-		m.Locked = !admin && ((a.lockPlayoffs && m.Stage != "Group") || !m.Kickoff.After(a.now()))
+		m.Locked = !admin && (a.stageLocked(m.Stage) || !m.Kickoff.After(a.now()))
 		matches = append(matches, m)
 	}
 	return matches, rows.Err()

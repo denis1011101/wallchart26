@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"slices"
 	"sort"
 	"testing"
 	"time"
@@ -62,6 +63,24 @@ func sentKinds(t *testing.T, a *app, userID int64) []string {
 	}
 	sort.Strings(kinds)
 	return kinds
+}
+
+func sentDedupeKeys(t *testing.T, a *app, userID int64) []string {
+	t.Helper()
+	rows, err := a.db.Query(`SELECT dedupe_key FROM notifications WHERE user_id = ? ORDER BY dedupe_key`, userID)
+	if err != nil {
+		t.Fatalf("query notifications: %v", err)
+	}
+	defer rows.Close()
+	var keys []string
+	for rows.Next() {
+		var k string
+		if err := rows.Scan(&k); err != nil {
+			t.Fatalf("scan dedupe_key: %v", err)
+		}
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 func ptr(v int) *int { return &v }
@@ -144,6 +163,88 @@ func TestRunNotificationsPlayoffStart(t *testing.T) {
 
 	if got := sentKinds(t, a, 1); len(got) != 1 || got[0] != string(kindPlayoffStart) {
 		t.Fatalf("Ann kinds = %v, want [playoff_start]", got)
+	}
+}
+
+func TestRunNotificationsStageOpen(t *testing.T) {
+	a := newTestApp(t)
+	a.now = func() time.Time { return fixedTime(t, "2026-07-03T12:00:00Z") }
+	a.announceStages = true
+
+	insertEmailUser(t, a, 1, "Ann", "ann@example.com", "en", 0)
+	// A knockout match still ahead, in an unlocked stage: it's open for predictions.
+	insertMatchKickoff(t, a, 200, "Round of 16", "2026-07-05T18:00:00Z", nil, nil)
+
+	if err := a.runNotifications(context.Background()); err != nil {
+		t.Fatalf("runNotifications: %v", err)
+	}
+
+	if got := sentKinds(t, a, 1); len(got) != 1 || got[0] != string(kindStageOpen) {
+		t.Fatalf("Ann kinds = %v, want [stage_open]", got)
+	}
+}
+
+func TestRunNotificationsStageOpenAdvancesToNewlyOpenedStage(t *testing.T) {
+	a := newTestApp(t)
+	a.now = func() time.Time { return fixedTime(t, "2026-07-03T12:00:00Z") }
+	a.announceStages = true
+
+	insertEmailUser(t, a, 1, "Ann", "ann@example.com", "en", 0)
+	// Round of 32 is still pending and was already announced to Ann recently
+	// (within the cooldown window) — proving the later stage jumps the cooldown.
+	insertMatchKickoff(t, a, 200, "Round of 32", "2026-07-04T18:00:00Z", nil, nil)
+	if _, err := a.db.Exec(
+		`INSERT INTO notifications(user_id, kind, dedupe_key, sent_at) VALUES (1, ?, ?, ?)`,
+		string(kindStageOpen), "stage_open:Round of 32", "2026-07-01T12:00:00Z",
+	); err != nil {
+		t.Fatalf("seed prior stage_open: %v", err)
+	}
+	// Round of 16 just opened and also has an upcoming match.
+	insertMatchKickoff(t, a, 201, "Round of 16", "2026-07-06T18:00:00Z", nil, nil)
+
+	if err := a.runNotifications(context.Background()); err != nil {
+		t.Fatalf("runNotifications: %v", err)
+	}
+
+	if got := sentDedupeKeys(t, a, 1); !slices.Contains(got, "stage_open:Round of 16") {
+		t.Fatalf("Ann dedupe keys = %v, want to include stage_open:Round of 16", got)
+	}
+}
+
+func TestRunNotificationsLockedStageNotAnnounced(t *testing.T) {
+	a := newTestApp(t)
+	a.now = func() time.Time { return fixedTime(t, "2026-07-03T12:00:00Z") }
+	a.announceStages = true
+	a.lockedStages = map[string]struct{}{"Round of 16": {}}
+
+	insertEmailUser(t, a, 1, "Ann", "ann@example.com", "en", 0)
+	// Same upcoming match, but its stage is locked — nothing to announce or nag.
+	insertMatchKickoff(t, a, 200, "Round of 16", "2026-07-05T18:00:00Z", nil, nil)
+
+	if err := a.runNotifications(context.Background()); err != nil {
+		t.Fatalf("runNotifications: %v", err)
+	}
+
+	if got := sentKinds(t, a, 1); len(got) != 0 {
+		t.Fatalf("Ann kinds = %v, want none", got)
+	}
+}
+
+func TestRunNotificationsStageOpenGatedOffWhenUnconfigured(t *testing.T) {
+	a := newTestApp(t)
+	a.now = func() time.Time { return fixedTime(t, "2026-07-03T12:00:00Z") }
+	// announceStages stays false (LOCK_STAGES not configured): every stage counts
+	// as open, but we must not blast stage_open emails.
+
+	insertEmailUser(t, a, 1, "Ann", "ann@example.com", "en", 0)
+	insertMatchKickoff(t, a, 200, "Round of 16", "2026-07-05T18:00:00Z", nil, nil)
+
+	if err := a.runNotifications(context.Background()); err != nil {
+		t.Fatalf("runNotifications: %v", err)
+	}
+
+	if got := sentKinds(t, a, 1); len(got) != 0 {
+		t.Fatalf("Ann kinds = %v, want none", got)
 	}
 }
 

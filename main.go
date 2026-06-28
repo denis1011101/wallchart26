@@ -50,7 +50,8 @@ type app struct {
 	smtp              smtpConfig
 	loginRateLimiter  *loginRequestLimiter
 	trustProxyHeaders bool
-	lockPlayoffs      bool
+	lockedStages      map[string]struct{}
+	announceStages    bool
 	baseURL           string
 	now               func() time.Time
 }
@@ -144,7 +145,8 @@ func run() error {
 		smtp:              loadSMTPConfig(),
 		loginRateLimiter:  newLoginRequestLimiter(loginIPLimit, loginIPWindow, loginGlobalLimit, loginGlobalWindow),
 		trustProxyHeaders: getenv("TRUST_PROXY_HEADERS", "false") == "true",
-		lockPlayoffs:      getenv("LOCK_PLAYOFFS", "false") == "true",
+		lockedStages:      loadLockedStages(),
+		announceStages:    stageLockConfigured(),
 		baseURL:           strings.TrimRight(getenv("BASE_URL", "https://wallchart26.com"), "/"),
 		now:               func() time.Time { return time.Now().UTC() },
 	}
@@ -270,4 +272,55 @@ func getenv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// knockoutStages lists the non-group stages in play order. Used both to gate
+// predictions (LOCK_STAGES) and to announce a stage opening for predictions.
+var knockoutStages = []string{"Round of 32", "Round of 16", "Quarter-final", "Semi-final", "Third place", "Final"}
+
+// loadLockedStages reads LOCK_STAGES (comma-separated stage names that are closed
+// for predictions). For backward compatibility, an unset LOCK_STAGES with
+// LOCK_PLAYOFFS=true locks every knockout stage.
+func loadLockedStages() map[string]struct{} {
+	if strings.TrimSpace(os.Getenv("LOCK_STAGES")) == "" {
+		if getenv("LOCK_PLAYOFFS", "false") == "true" {
+			set := make(map[string]struct{}, len(knockoutStages))
+			for _, s := range knockoutStages {
+				set[s] = struct{}{}
+			}
+			return set
+		}
+		return map[string]struct{}{}
+	}
+	return parseStageSet(os.Getenv("LOCK_STAGES"))
+}
+
+// stageLockConfigured reports whether LOCK_STAGES is explicitly set (even to an
+// empty value). Stage-open announcements are gated on this: when LOCK_STAGES is
+// absent every knockout stage counts as open, which would make the notifier blast
+// one stage_open email per stage. Requiring an explicit LOCK_STAGES keeps the
+// announcements tied to the intended "remove a stage to open it" workflow.
+func stageLockConfigured() bool {
+	_, ok := os.LookupEnv("LOCK_STAGES")
+	return ok
+}
+
+func parseStageSet(raw string) map[string]struct{} {
+	set := map[string]struct{}{}
+	for _, part := range strings.Split(raw, ",") {
+		if s := strings.TrimSpace(part); s != "" {
+			set[s] = struct{}{}
+		}
+	}
+	return set
+}
+
+// stageLocked reports whether predictions for a stage are currently closed. The
+// group stage is never locked.
+func (a *app) stageLocked(stage string) bool {
+	if stage == "Group" {
+		return false
+	}
+	_, ok := a.lockedStages[stage]
+	return ok
 }

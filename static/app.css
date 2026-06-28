@@ -83,6 +83,7 @@ h2 { margin: 0; font-size: 22px; }
 }
 .section-head h1 { font-size: 32px; line-height: 1.05; margin: 0; }
 .section-head span, .status, time { color: var(--muted); font-size: 13px; }
+.save-info { text-align: right; }
 .autosave-hint { color: var(--muted); font-size: 13px; margin: 4px 0 0; }
 .join { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; }
 input {
@@ -132,8 +133,6 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
 .score-cells { display: grid; grid-template-columns: 44px 14px 44px; gap: 4px; align-items: center; }
 .score-cells input { text-align: center; padding: 6px; min-height: 38px; }
 .score-cells span { text-align: center; color: var(--muted); }
-.team-picks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.team-picks input { min-height: 38px; padding: 7px 9px; }
 .readonly-score { font-weight: 800; color: var(--blue); }
 .admin-form { grid-template-columns: 160px minmax(280px, 1fr) 118px 70px; }
 .admin-teams { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -197,6 +196,5 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
   .teams { grid-template-columns: 1fr; gap: 3px; }
   .teams span:last-child, .dash { text-align: left; }
   .score-cells { width: 118px; }
-  .team-picks { grid-template-columns: 1fr; }
   h1 { font-size: 52px; }
 }

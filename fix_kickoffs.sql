@@ -74,3 +74,23 @@ UPDATE matches SET kickoff_utc='2026-06-23T23:00:00Z' WHERE id=70; -- Panama x C
 UPDATE matches SET kickoff_utc='2026-06-27T21:00:00Z' WHERE id=71; -- Panama x England (28.06 00:00 MSK)
 UPDATE matches SET kickoff_utc='2026-06-27T21:00:00Z' WHERE id=72; -- Croatia x Ghana (28.06 00:00 MSK)
 COMMIT;
+
+-- World Cup 2026 Round of 32 (1/16) kickoffs (converted from Moscow time MSK = UTC+3 to UTC)
+BEGIN;
+UPDATE matches SET kickoff_utc='2026-06-28T19:00:00Z' WHERE id=73; -- South Africa x Canada (28.06 22:00 MSK)
+UPDATE matches SET kickoff_utc='2026-06-29T20:30:00Z' WHERE id=74; -- Germany x Paraguay (29.06 23:30 MSK)
+UPDATE matches SET kickoff_utc='2026-06-30T01:00:00Z' WHERE id=75; -- Netherlands x Morocco (30.06 04:00 MSK)
+UPDATE matches SET kickoff_utc='2026-06-29T17:00:00Z' WHERE id=76; -- Brazil x Japan (29.06 20:00 MSK)
+UPDATE matches SET kickoff_utc='2026-06-30T21:00:00Z' WHERE id=77; -- France x Sweden (01.07 00:00 MSK)
+UPDATE matches SET kickoff_utc='2026-06-30T17:00:00Z' WHERE id=78; -- Ivory Coast x Norway (30.06 20:00 MSK)
+UPDATE matches SET kickoff_utc='2026-07-01T01:00:00Z' WHERE id=79; -- Mexico x Ecuador (01.07 04:00 MSK)
+UPDATE matches SET kickoff_utc='2026-07-01T16:00:00Z' WHERE id=80; -- England x DR Congo (01.07 19:00 MSK)
+UPDATE matches SET kickoff_utc='2026-07-02T00:00:00Z' WHERE id=81; -- United States x Bosnia (02.07 03:00 MSK)
+UPDATE matches SET kickoff_utc='2026-07-01T20:00:00Z' WHERE id=82; -- Belgium x Senegal (01.07 23:00 MSK)
+UPDATE matches SET kickoff_utc='2026-07-02T23:00:00Z' WHERE id=83; -- Portugal x Croatia (03.07 02:00 MSK)
+UPDATE matches SET kickoff_utc='2026-07-02T19:00:00Z' WHERE id=84; -- Spain x Austria (02.07 22:00 MSK)
+UPDATE matches SET kickoff_utc='2026-07-03T03:00:00Z' WHERE id=85; -- Switzerland x Algeria (03.07 06:00 MSK)
+UPDATE matches SET kickoff_utc='2026-07-03T22:00:00Z' WHERE id=86; -- Argentina x Cape Verde (04.07 01:00 MSK)
+UPDATE matches SET kickoff_utc='2026-07-04T01:30:00Z' WHERE id=87; -- Colombia x Ghana (04.07 04:30 MSK)
+UPDATE matches SET kickoff_utc='2026-07-03T18:00:00Z' WHERE id=88; -- Australia x Egypt (03.07 21:00 MSK)
+COMMIT;
